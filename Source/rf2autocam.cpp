@@ -25,7 +25,10 @@
 #include <iomanip>
 #include <algorithm>            // for std::transform (case-insensitive compare)
 #include <process.h>
+#include <thread>               // for SwitchCameraViaREST background thread
+#include <winhttp.h>            // for LMU REST API calls
 #pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "winhttp.lib")
 
 #include <ctime>
 
@@ -37,6 +40,43 @@ static bool iequals(const std::string& a, const std::string& b)
         if (tolower(static_cast<unsigned char>(a[i])) != tolower(static_cast<unsigned char>(b[i])))
             return false;
     return true;
+}
+
+// LMU camera switch: PUT http://localhost:6397/rest/watch/focus/{slotId}
+// Runs in a detached background thread to avoid blocking the game loop.
+void rF2autocam::SwitchCameraViaREST(int slotId)
+{
+    std::thread([slotId]() {
+        HINTERNET hSession = WinHttpOpen(L"rF2AutoCam/1.0",
+            WINHTTP_ACCESS_TYPE_NO_PROXY,
+            WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+        if (!hSession) return;
+
+        HINTERNET hConnect = WinHttpConnect(hSession, L"localhost", 6397, 0);
+        if (!hConnect) { WinHttpCloseHandle(hSession); return; }
+
+        std::wstring path = L"/rest/watch/focus/" + std::to_wstring(slotId);
+        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"PUT", path.c_str(),
+            NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+        if (!hRequest) {
+            WinHttpCloseHandle(hConnect);
+            WinHttpCloseHandle(hSession);
+            return;
+        }
+
+        DWORD timeout = 3000; // 3 sec
+        WinHttpSetOption(hRequest, WINHTTP_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
+        WinHttpSetOption(hRequest, WINHTTP_OPTION_SEND_TIMEOUT,    &timeout, sizeof(timeout));
+        WinHttpSetOption(hRequest, WINHTTP_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
+
+        WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+            WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+        WinHttpReceiveResponse(hRequest, NULL);
+
+        WinHttpCloseHandle(hRequest);
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+    }).detach();
 }
 
 // plugin information
@@ -302,6 +342,40 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 	if (0 == replayoffset && seged == e) {
 		replayoffset = 5.0;
 		WritePrivateProfileString("AUTOCAM", "replayoffset", "5.0", str.c_str());
+	}
+	// LMU detection (once only): check if REST API is running on localhost:6397
+	if (!lmuDetected) {
+		lmuDetected = true;
+		isLMU = false;
+		HINTERNET hSession = WinHttpOpen(L"rF2AutoCam/1.0",
+			WINHTTP_ACCESS_TYPE_NO_PROXY,
+			WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+		if (hSession) {
+			HINTERNET hConnect = WinHttpConnect(hSession, L"localhost", 6397, 0);
+			if (hConnect) {
+				HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET",
+					L"/rest/watch/sessionInfo", NULL, WINHTTP_NO_REFERER,
+					WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
+				if (hRequest) {
+					DWORD timeout = 2000; // 2 sec timeout to avoid startup delay
+					WinHttpSetOption(hRequest, WINHTTP_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
+					WinHttpSetOption(hRequest, WINHTTP_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
+					if (WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+						WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+						if (WinHttpReceiveResponse(hRequest, NULL)) {
+							DWORD code = 0, sz = sizeof(code);
+							WinHttpQueryHeaders(hRequest,
+								WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+								NULL, &code, &sz, NULL);
+							isLMU = (code == 200);
+						}
+					}
+					WinHttpCloseHandle(hRequest);
+				}
+				WinHttpCloseHandle(hConnect);
+			}
+			WinHttpCloseHandle(hSession);
+		}
 	}
 	// environmentAlreadySet = true;
 }
@@ -831,6 +905,15 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				aktname = vinfo.mDriverName;
 				curlapT = info.mCurrentET - vinfo.mLapStartET;
 			}
+		}
+		// LMU: WantsToViewVehicle is never called by LMU → switch camera via REST API
+		if (isLMU && needveh != aktveh) {
+			aktveh      = needveh;
+			aktpos      = needpos;
+			lastcam     = needcam;
+			camvalttime = sessiontime;
+			WritetoFileDrivername();
+			SwitchCameraViaREST(needveh);
 		}
 		// FILE OUTPUTS
 		// Build time display string (shared by time.txt and status.json)

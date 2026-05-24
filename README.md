@@ -1,6 +1,6 @@
 # rf2-autocam
 
-Automatic camera control plugin for rFactor 2 (and Le Mans Ultimate — planned).
+Automatic camera control plugin for rFactor 2 and Le Mans Ultimate.
 
 Enables automated broadcast-style camera switching for live race streams — no human operator required, ideal for endurance races or unattended streams.
 
@@ -17,11 +17,27 @@ Enables automated broadcast-style camera switching for live race streams — no 
 
 ## Installation
 
+The same `rf2autocam_x64.dll` works for both rFactor 2 and Le Mans Ultimate.  
+The plugin detects which game it is running in automatically — no configuration needed.
+
+### rFactor 2
+
 1. Copy `rf2autocam_x64.dll` to `<rFactor2>\Bin64\Plugins\`
 2. Launch rFactor 2 — the plugin will create `rF2autocam.ini` in `UserData\player\` on first run
 3. Edit the ini file to adjust behavior (see [Configuration](#configuration))
 
 Recommended: set instant replay length to 180 seconds in rF2 settings.
+
+### Le Mans Ultimate
+
+1. Navigate to `<LeMansUltimate>\Bin64\Plugins\` — create the folder if it does not exist
+2. Copy `rf2autocam_x64.dll` into it
+3. In LMU: **Settings → Gameplay → Enable Plugins: ON**
+4. Launch a session — the plugin will create `rF2autocam.ini` in `UserData\player\` on first run
+
+> **Note:** LMU camera control uses the game's built-in REST API (`localhost:6397`).  
+> The plugin switches cameras automatically via `PUT /rest/watch/focus/{slotId}`.  
+> Instant replay is not supported in LMU (the replay API works differently from rF2).
 
 ## Configuration
 
@@ -114,10 +130,21 @@ Updated every ~0.5 seconds. Example:
 
 ## Compatibility
 
-| Game | Status |
-|------|--------|
-| rFactor 2 | ✅ Supported |
-| Le Mans Ultimate | 🔄 Planned |
+| Game | Status | Notes |
+|------|--------|-------|
+| rFactor 2 | ✅ Supported | Full feature set |
+| Le Mans Ultimate | ✅ Supported | Camera switching via REST API. Instant replay not supported |
+
+### LMU technical notes
+
+LMU does not call the `WantsToViewVehicle` plugin callback that rF2 uses for camera control.  
+Instead, this plugin uses LMU's built-in REST API to switch cameras:
+
+- **Vehicle focus**: `PUT http://localhost:6397/rest/watch/focus/{slotId}`
+- **Camera type**: `POST http://localhost:6397/rest/replay/CameraController/setCamera`
+
+The REST API is only accessible from the same machine (loopback only).  
+The plugin calls it from a background thread to avoid any impact on frame timing.
 
 ## Credits
 

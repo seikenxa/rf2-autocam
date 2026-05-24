@@ -153,6 +153,11 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   int  autokey        = 0xBE;  // default: . (period / VK_OEM_PERIOD)
   bool autokeypressed = false;
 
+  // LMU support: camera switching via REST API (WantsToViewVehicle not called by LMU)
+  bool isLMU       = false;  // true when running inside LMU (detected at SetEnvironment)
+  bool lmuDetected = false;  // detection attempted guard (run once only)
+  void SwitchCameraViaREST(int slotId);  // PUT /rest/watch/focus/{slotId}
+
   // Incident replay
   bool   needreplay    = false;
   bool   stopreplay    = false;
