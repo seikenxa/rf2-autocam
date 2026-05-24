@@ -154,4 +154,7 @@ This fork continues development after the original project went dormant in 2015.
 
 ## License
 
-The original project has no explicit license. Please refer to the original repository.
+MIT License — see [LICENSE](LICENSE) for details.
+
+Copyright (c) 2026 h0rcs4  
+Copyright (c) 2026 seikenxa
