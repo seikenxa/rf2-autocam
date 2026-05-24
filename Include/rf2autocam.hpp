@@ -107,7 +107,11 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   std::string sfilename;
   double      lowinc  = 0.0;
   double      highinc = 0.0;
-  long        debuglog = 0; // debug log to file (0=off, 1=on)
+  long        debuglog = 0;    // debug log to file (0=off, 1=on)
+  double      sbsdist  = 1.5;  // side-by-side detection distance [m]
+  long        sbscount = 2;    // min cars at same point to trigger SBS camera
+  long        replayduration = 20;   // instant replay playback length [s]
+  double      replayoffset   = 5.0;  // seek this many seconds before incident [s]
 
   // Runtime camera state
   std::string    sseged;

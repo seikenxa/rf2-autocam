@@ -276,6 +276,30 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 		debuglog = 0;
 		WritePrivateProfileString("AUTOCAM", "debug", "0", str.c_str());
 	}
+	GetPrivateProfileString("AUTOCAM", "sbsdist", "a", seged, sizeof(seged), str.c_str());
+	sbsdist = strtod(seged, &e);
+	if (0 == sbsdist && seged == e) {
+		sbsdist = 1.5;
+		WritePrivateProfileString("AUTOCAM", "sbsdist", "1.5", str.c_str());
+	}
+	GetPrivateProfileString("AUTOCAM", "sbscount", "a", seged, sizeof(seged), str.c_str());
+	sbscount = strtol(seged, &e, 0);
+	if (0 == sbscount && seged == e) {
+		sbscount = 2;
+		WritePrivateProfileString("AUTOCAM", "sbscount", "2", str.c_str());
+	}
+	GetPrivateProfileString("AUTOCAM", "replayduration", "a", seged, sizeof(seged), str.c_str());
+	replayduration = strtol(seged, &e, 0);
+	if (0 == replayduration && seged == e) {
+		replayduration = 20;
+		WritePrivateProfileString("AUTOCAM", "replayduration", "20", str.c_str());
+	}
+	GetPrivateProfileString("AUTOCAM", "replayoffset", "a", seged, sizeof(seged), str.c_str());
+	replayoffset = strtod(seged, &e);
+	if (0 == replayoffset && seged == e) {
+		replayoffset = 5.0;
+		WritePrivateProfileString("AUTOCAM", "replayoffset", "5.0", str.c_str());
+	}
 	// environmentAlreadySet = true;
 }
 
@@ -601,7 +625,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 						for (long j = 0; j < info.mNumVehicles; ++j) // searching side by side
 						{
 							VehicleScoringInfoV01 &vinfosbs = info.mVehicle[j];
-							if (abs(vinfo.mLapDist - vinfosbs.mLapDist) < 1.5) { sbs++; } // ~1.5m: typical side-by-side distance
+							if (abs(vinfo.mLapDist - vinfosbs.mLapDist) < sbsdist) { sbs++; }
 						}
 						if ((info.mGamePhase == 5) || (info.mGamePhase == 4)) // Green Flag
 						{
@@ -623,7 +647,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 									needpos = vinfo.mPlace;
 								}
 							}
-							if ((sbs > maxsbs) && ( sbs > 1) && ((needsbspos == 0) || (vinfo.mPlace < needsbspos)))
+							if ((sbs > maxsbs) && (sbs >= sbscount) && ((needsbspos == 0) || (vinfo.mPlace < needsbspos)))
 							{
 								maxsbs = sbs;
 								needsbspos = vinfo.mPlace;								
@@ -639,7 +663,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 						}
 					}
 				} // difference check end
-				if (maxsbs > 2) { // cars side by side
+				if (maxsbs >= sbscount) { // cars side by side
 					needpos = needsbspos;
 					pontosminbehind = obtime + 1; // disable onboard
 				}
@@ -918,7 +942,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 	if ((!scoringrun) && (automatic != 0)) {		
 		if (camControl.mReplayActive)
 		{
-			if (sessiontime > replaystarted + 20)
+			if (sessiontime > replaystarted + replayduration)
 			{
 				stopreplay = true;
 				replayset = false;
@@ -929,7 +953,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 				camControl.mID = replayveh;
 				camControl.mCameraType = 4;
 				camControl.mReplaySetTime = true;
-				camControl.mReplaySeconds = static_cast<float>(inctime - 5.0);
+				camControl.mReplaySeconds = static_cast<float>(inctime - replayoffset);
 				aktveh = replayveh;				
 				replayset = true;
 				WritetoFileDrivername();

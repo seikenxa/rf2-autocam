@@ -43,6 +43,10 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 | `lowinc` | `0.4` | Incident severity threshold for replay in practice/qualifying |
 | `highinc` | `0.8` | Incident severity threshold for replay in all sessions |
 | `camtest` | `no` | Camera test mode: `no`, `ob` (force onboard), `rv` (force rearview) |
+| `sbsdist` | `1.5` | Side-by-side detection distance in meters (cars within this distance trigger SBS camera) |
+| `sbscount` | `2` | Minimum number of cars at the same track position to trigger SBS camera |
+| `replayduration` | `20` | How long (seconds) instant replay plays before returning to live |
+| `replayoffset` | `5.0` | How many seconds before the incident to start the replay |
 | `debug` | `0` | Write debug log to `filespath\debug.log` (0=off, 1=on) |
 
 ### Camera type numbers
