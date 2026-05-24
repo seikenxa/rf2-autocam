@@ -184,12 +184,6 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 		automatic = 1;
 		WritePrivateProfileString("AUTOCAM", "auto", "1", str.c_str());
 	}
-	GetPrivateProfileString("AUTOCAM", "autokey", "a", seged, 255, str.c_str());
-	autokey = strtol(seged, &e, 0);
-	if (0 == waitsec && seged == e) {
-		autokey = 0x41;
-		WritePrivateProfileString("AUTOCAM", "autokey", "0x41", str.c_str());
-	}
 	GetPrivateProfileString("AUTOCAM", "waitsec", "a", seged, 255, str.c_str());
 	waitsec = strtol(seged, &e, 0);
 	if (0 == waitsec && seged == e) {
@@ -442,44 +436,31 @@ void rF2autocam::UpdateGraphics( const GraphicsInfoV01 &info )
   // is working, and b) explain the coordinate system a little bit (see header for more info)
 }
 
-bool key_pressed(int pKeyCode)
-{
-	return (GetAsyncKeyState(pKeyCode) & 0x8000) != 0;
-}
-
 bool rF2autocam::CheckHWControl( const char * const controlName, double &fRetVal )
 {
   // only if enabled, of course
   if( !mEnabled )
     return( false );
 
-  // Note that incoming value is the game's computation, in case you're interested.
-
-  // Sorry, no control allowed over actual vehicle inputs ... would be too easy to cheat!
-  // However, you can still look at the values.
-
-  // Note: since the game calls this function every frame for every available control, you might consider
-  // doing a binary search if you are checking more than 7 or 8 strings, just to keep the speed up.
-  if (key_pressed(VK_CONTROL) && key_pressed(autokey))
+  // Toggle auto camera with "Control - Custom Plugin #1".
+  // Assign any key/button in Options -> Controls (Other tab) in rFactor 2.
+  if (strcmp(controlName, "Control - Custom Plugin #1") == 0)
   {
-	  if (!autokeypressed) {
-		  message.mDestination = 0;
-		  message.mTranslate = 0;
-		  if (automatic) {
-			  automatic = false;
-			  strcpy(message.mText, "Auto camera: off");
-		  }
-		  else {
-			  automatic = true;
-			  strcpy(message.mText, "Auto camera: on");
-		  }
-	  }
-	  autokeypressed = true;
-  }
-  else
-  {
-	  // Reset when either key is released so next chord fires correctly
-	  autokeypressed = false;
+      bool pressed = (fRetVal > 0.5);
+      if (pressed && !autokeypressed)
+      {
+          message.mDestination = 0;
+          message.mTranslate = 0;
+          if (automatic) {
+              automatic = false;
+              strcpy(message.mText, "Auto camera: off");
+          }
+          else {
+              automatic = true;
+              strcpy(message.mText, "Auto camera: on");
+          }
+      }
+      autokeypressed = pressed;
   }
   if ((_stricmp(controlName, "InstantReplay") == 0) && (sessiontime > (inctime + 10)) && (needreplay && !onreplay))
   {
@@ -527,7 +508,6 @@ bool rF2autocam::ForceFeedback( double &forceValue )
 void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 {
 	char* e = nullptr;
-	here = 0;
 	// Note: function is called twice per second now (instead of once per second in previous versions)
 	if (automatic != 0) // auto mode on
 	{		

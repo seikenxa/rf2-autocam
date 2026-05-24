@@ -23,6 +23,16 @@ Enables automated broadcast-style camera switching for live race streams — no 
 
 Recommended: set instant replay length to 180 seconds in rF2 settings.
 
+## Key Assignment
+
+The auto-camera toggle is bound to **"Control - Custom Plugin #1"** — a built-in rF2 control slot.
+
+To assign a key:
+1. Launch rFactor 2 and open **Options → Controls**
+2. Go to the **Other** tab (or search for "Custom Plugin")
+3. Bind **Custom Plugin #1** to the key of your choice
+4. Press the key in-game to toggle auto camera on/off; a brief on-screen message confirms the state
+
 ## Configuration
 
 The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
@@ -30,7 +40,6 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `auto` | `1` | Auto camera on/off at startup (0=off, 1=on) |
-| `autokey` | `0x41` | Hotkey to toggle auto mode (Ctrl + key). Default: Ctrl+A |
 | `waitsec` | `15` | Minimum seconds between camera changes (actual time adds up to +5s randomly) |
 | `interest` | `12` | Positions 1–N receive priority weighting |
 | `interestdiff` | `3` | Gap threshold (seconds) for "interesting" battle; beyond this, switches to random mode |
