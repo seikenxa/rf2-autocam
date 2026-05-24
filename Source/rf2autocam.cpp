@@ -460,31 +460,26 @@ bool rF2autocam::CheckHWControl( const char * const controlName, double &fRetVal
 
   // Note: since the game calls this function every frame for every available control, you might consider
   // doing a binary search if you are checking more than 7 or 8 strings, just to keep the speed up.
-  if (key_pressed(VK_CONTROL))
+  if (key_pressed(VK_CONTROL) && key_pressed(autokey))
   {
-	  if (key_pressed(autokey)) {
+	  if (!autokeypressed) {
 		  message.mDestination = 0;
 		  message.mTranslate = 0;
-		  if (!autokeypressed) {
-			  if (automatic) {
-				  automatic = false;
-				  strcpy(message.mText, "Auto camera: off");
-			  }
-			  else {
-				  automatic = true;
-				  strcpy(message.mText, "Auto camera: on");
-			  }			  
+		  if (automatic) {
+			  automatic = false;
+			  strcpy(message.mText, "Auto camera: off");
 		  }
-		  autokeypressed = true;
-//		  return (true);
+		  else {
+			  automatic = true;
+			  strcpy(message.mText, "Auto camera: on");
+		  }
 	  }
-	  else { autokeypressed = false; }
-/*	  if (key_pressed(73)) // i - testing for replays
-	  {
-		  needreplay = true;
-		  inctime = sessiontime;
-		  replayveh = 5;
-	  } */
+	  autokeypressed = true;
+  }
+  else
+  {
+	  // Reset when either key is released so next chord fires correctly
+	  autokeypressed = false;
   }
   if ((_stricmp(controlName, "InstantReplay") == 0) && (sessiontime > (inctime + 10)) && (needreplay && !onreplay))
   {
