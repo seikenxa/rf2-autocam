@@ -184,11 +184,17 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 		automatic = 1;
 		WritePrivateProfileString("AUTOCAM", "auto", "1", str.c_str());
 	}
+	GetPrivateProfileString("AUTOCAM", "autokey", "a", seged, 255, str.c_str());
+	autokey = strtol(seged, &e, 0);
+	if (0 == autokey && seged == e) {
+		autokey = 0x74;  // default: F5
+		WritePrivateProfileString("AUTOCAM", "autokey", "0x74", str.c_str());
+	}
 	GetPrivateProfileString("AUTOCAM", "waitsec", "a", seged, 255, str.c_str());
 	waitsec = strtol(seged, &e, 0);
 	if (0 == waitsec && seged == e) {
 		waitsec = 15;
-		WritePrivateProfileString("AUTOCAM", "waitsec", "15", str.c_str());		
+		WritePrivateProfileString("AUTOCAM", "waitsec", "15", str.c_str());
 	}	
 	GetPrivateProfileString("AUTOCAM", "interest", "a", seged, 255, str.c_str());
 	interest = strtol(seged, &e, 0);
@@ -436,18 +442,21 @@ void rF2autocam::UpdateGraphics( const GraphicsInfoV01 &info )
   // is working, and b) explain the coordinate system a little bit (see header for more info)
 }
 
+static bool key_pressed(int pKeyCode)
+{
+    return (GetAsyncKeyState(pKeyCode) & 0x8000) != 0;
+}
+
 bool rF2autocam::CheckHWControl( const char * const controlName, double &fRetVal )
 {
   // only if enabled, of course
   if( !mEnabled )
     return( false );
 
-  // Toggle auto camera with "Control - Custom Plugin #1".
-  // Assign any key/button in Options -> Controls (Other tab) in rFactor 2.
-  if (strcmp(controlName, "Control - Custom Plugin #1") == 0)
+  // Toggle auto camera: Ctrl + autokey (configured in ini, default Ctrl+F5).
+  if (key_pressed(VK_CONTROL) && key_pressed(autokey))
   {
-      bool pressed = (fRetVal > 0.5);
-      if (pressed && !autokeypressed)
+      if (!autokeypressed)
       {
           message.mDestination = 0;
           message.mTranslate = 0;
@@ -460,7 +469,12 @@ bool rF2autocam::CheckHWControl( const char * const controlName, double &fRetVal
               strcpy(message.mText, "Auto camera: on");
           }
       }
-      autokeypressed = pressed;
+      autokeypressed = true;
+  }
+  else
+  {
+      // Reset when either key is released so next chord fires correctly
+      autokeypressed = false;
   }
   if ((_stricmp(controlName, "InstantReplay") == 0) && (sessiontime > (inctime + 10)) && (needreplay && !onreplay))
   {

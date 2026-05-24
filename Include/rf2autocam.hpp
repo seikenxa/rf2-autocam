@@ -149,7 +149,8 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   double best2T   = 2147483640.0;
   double curlapT  = 0.0;
 
-  // Toggle state for "Control - Custom Plugin #1"
+  // Hotkey (Ctrl + autokey); configured in ini
+  int  autokey        = 0x74;  // default: F5
   bool autokeypressed = false;
 
   // Incident replay
