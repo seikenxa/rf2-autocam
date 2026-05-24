@@ -998,6 +998,14 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 				WritetoFileDrivername();
 				return{ 1 };
 			}
+			// Reassert current camera every frame to prevent manual override
+			// while auto mode is on. User can regain control with Ctrl+A.
+			if (aktveh >= 0)
+			{
+				camControl.mID = aktveh;
+				camControl.mCameraType = lastcam;
+				return{ 1 };
+			}
 		}
 	}
 	return{ 0 };
