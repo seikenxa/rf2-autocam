@@ -70,7 +70,7 @@ Add these as "Text (GDI+)" or "Browser" sources in OBS.
 ## Building from Source
 
 **Requirements:**
-- Visual Studio 2022 (Desktop development with C++ workload)
+- Visual Studio 2022 or later (Desktop development with C++ workload)
 - Windows SDK
 
 **Steps:**

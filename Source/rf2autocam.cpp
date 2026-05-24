@@ -1,20 +1,20 @@
-//���������������������������������������������������������������������������
-//�                                                                         �
-//� Module: Internals Example Source File                                   �
-//�                                                                         �
-//� Description: Declarations for the Internals Example Plugin              �
-//�                                                                         �
-//�                                                                         �
-//� This source code module, and all information, data, and algorithms      �
-//� associated with it, are part of CUBE technology (tm).                   �
-//�                 PROPRIETARY AND CONFIDENTIAL                            �
-//� Copyright (c) 1996-2014 Image Space Incorporated.  All rights reserved. �
-//�                                                                         �
-//�                                                                         �
-//� Change history:                                                         �
-//�   tag.2005.11.30: created                                               �
-//�                                                                         �
-//���������������������������������������������������������������������������
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½ Module: Internals Example Source File                                   ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½ Description: Declarations for the Internals Example Plugin              ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½ This source code module, and all information, data, and algorithms      ï¿½
+//ï¿½ associated with it, are part of CUBE technology (tm).                   ï¿½
+//ï¿½                 PROPRIETARY AND CONFIDENTIAL                            ï¿½
+//ï¿½ Copyright (c) 1996-2014 Image Space Incorporated.  All rights reserved. ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½ Change history:                                                         ï¿½
+//ï¿½   tag.2005.11.30: created                                               ï¿½
+//ï¿½                                                                         ï¿½
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 #include "rf2autocam.hpp"          // corresponding header file
 #include <math.h>               // for atan2, sqrt
@@ -73,9 +73,9 @@ long aktpos;
 long sbs; // side by side
 long needsbspos;
 long maxsbs;
-double minbehind; // legkisebb k�l�nbs�g kerekitett
-double pontosminbehind; // legkisebb k�l�nbs�g pontosan
-double aktbehind; // k�l�nbs�g
+double minbehind; // legkisebb kï¿½lï¿½nbsï¿½g kerekitett
+double pontosminbehind; // legkisebb kï¿½lï¿½nbsï¿½g pontosan
+double aktbehind; // kï¿½lï¿½nbsï¿½g
 double sessiontime;
 double camvalttime;
 bool allbox;
@@ -174,7 +174,7 @@ void rF2autocam::WritetoInfohtml(long session)
 		fprintf(flist, "		font-weight: bold;");
 		fprintf(flist, "	}");
 		fprintf(flist, "	tr {		");
-		fprintf(flist, "		background-size: 100% 100%;");
+		fprintf(flist, "		background-size: 100%% 100%%;");
 		fprintf(flist, "	}");
 		fprintf(flist, "	td.head {");
 		fprintf(flist, "		// background-image: url('Driver.png');");
@@ -205,10 +205,10 @@ void rF2autocam::WritetoInfohtml(long session)
 				fprintf(flist, "</tr>");
 				fprintf(flist, "<tr>");
 				fprintf(flist, "<td class=\"head\" width=\"45px\">Dif:</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">%.3f</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">%.3f</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">%.3f</td>");
-				fprintf(flist, "<td class=\"value\" width=\"80px\">%.0f:%06.3f</td>");
+				fprintf(flist, "<td class=\"value\" width=\"65px\">-</td>");
+				fprintf(flist, "<td class=\"value\" width=\"65px\">-</td>");
+				fprintf(flist, "<td class=\"value\" width=\"65px\">-</td>");
+				fprintf(flist, "<td class=\"value\" width=\"80px\">-</td>");
 				fprintf(flist, "</tr>");
 				fprintf(flist, "<tr>");
 				fprintf(flist, "<td class=\"head\" width=\"45px\">Curr:</td>");
@@ -235,7 +235,7 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 	} */
 	// retrieve the ini filename (full path)
 	std::string str = info.mPath[1];
-	unsigned found = str.find_last_of("/\\");
+	size_t found = str.find_last_of("/\\");
 	str = str.substr(0, found);
 	str.append("\\rF2autocam.ini");
 	inifilename = str;
@@ -340,7 +340,7 @@ void rF2autocam::Startup( long version )
 {
   // Open ports, read configs, whatever you need to do.  For now, I'll just clear out the
   // example output data files.
-	srand(time(NULL));
+	srand(static_cast<unsigned int>(time(NULL)));
 
   // default HW control enabled to true
   mEnabled = true;
@@ -770,7 +770,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				if (pontosminbehind > interestsec) {					
 					if (((sessiontime - camvalttime) >= camvalthat) && (!inpit))
 					{
-						if ((rand() % 1) == 1) { needpos = rand() % info.mNumVehicles; } //random vehichle
+						if ((rand() % 5) == 1) { needpos = rand() % info.mNumVehicles; } // random vehicle
 					}
 				}				
 				// LastLap+last+sector cam to last not finished
@@ -939,7 +939,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 							else { fprintf(ftime, "%d / %d", currentlap, info.mMaxLaps); }
 						}
 					}
-					else { if (info.mGamePhase == 8) { fprintf(ftime, "Futam v�ge"); } else { fprintf(ftime, ""); } }
+					else { if (info.mGamePhase == 8) { fprintf(ftime, "Race finished"); } else { fprintf(ftime, ""); } }
 				}
 				else {
 					if ((info.mEndET - info.mCurrentET) > 0) {
@@ -1010,7 +1010,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 				camControl.mID = replayveh;
 				camControl.mCameraType = 4;
 				camControl.mReplaySetTime = true;
-				camControl.mReplaySeconds = inctime-5;
+				camControl.mReplaySeconds = static_cast<float>(inctime - 5.0);
 				aktveh = replayveh;				
 				replayset = true;
 				WritetoFileDrivername();
