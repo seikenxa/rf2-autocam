@@ -62,7 +62,7 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 
 ## OBS / Streaming Integration
 
-The plugin writes files to the path set in `filespath` (default: `C:\rF2stream\`).
+The plugin writes files to the path set in `filespath` (default: `<rF2 install>\UserData\player\rF2stream\`).
 
 | File | Content |
 |------|---------|
