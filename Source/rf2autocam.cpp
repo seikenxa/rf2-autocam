@@ -157,6 +157,7 @@ void rF2autocam::WriteToJson(long session, const std::string& timestr)
 	}
 	f << "  \"camera\": \""       << camname  << "\",\n";
 	f << "  \"on_replay\": "      << (onreplay ? "true" : "false") << ",\n";
+	f << "  \"autocam\": "        << (automatic ? "true" : "false") << ",\n";
 	f << "  \"session_type\": \"" << sessname << "\",\n";
 	f << "  \"time_display\": \"" << jsonEscape(timestr) << "\",\n";
 	f << "  \"gap_to_next\": "

@@ -69,9 +69,37 @@ The plugin writes files to the path set in `filespath` (default: `<rF2 install>\
 | `driver.txt` | Current driver name and position |
 | `time.txt` | Remaining time or lap count |
 | `info.html` | Auto-refreshing HTML with sector times |
-| `status.json` | Structured data for custom overlays (driver, position, camera, gap, session info) |
+| `status.json` | Structured data for custom overlays — see below |
 
 Add these as "Text (GDI+)" or "Browser" sources in OBS.
+
+### status.json fields
+
+Updated every ~0.5 seconds. Example:
+
+```json
+{
+  "driver":       "Verstappen",
+  "position":     3,
+  "camera":       "trackside",
+  "on_replay":    false,
+  "autocam":      true,
+  "session_type": "race",
+  "time_display": "01:23:45",
+  "gap_to_next":  0.312
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `driver` | string | Driver name currently on camera. During replay: name of the incident driver |
+| `position` | number | Race/quali position of the current driver. `0` during replay |
+| `camera` | string | Active camera type: `tvcockpit`, `cockpit`, `nosecam`, `swingman`, `rearview`, `onboard`, `trackside` |
+| `on_replay` | boolean | `true` while an instant replay is playing |
+| `autocam` | boolean | `true` = auto camera is active; `false` = manual / autocam toggled off |
+| `session_type` | string | `practice`, `qualifying`, or `race` |
+| `time_display` | string | Remaining time (`HH:MM:SS`), lap count (`n / N`), `"Last lap"`, `"Race finished"`, `"REPLAY"`, or `""` |
+| `gap_to_next` | number | Gap in seconds to the car ahead of the current subject. `0.0` during replay |
 
 ## Building from Source
 
