@@ -107,6 +107,7 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   std::string sfilename;
   double      lowinc  = 0.0;
   double      highinc = 0.0;
+  long        debuglog = 0; // debug log to file (0=off, 1=on)
 
   // Runtime camera state
   std::string    sseged;
@@ -133,7 +134,6 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   double         aktbehind         = 0.0;
   double         sessiontime       = 0.0;
   double         camvalttime       = 0.0;
-  bool           allbox      = false;
   bool           allfinished = false;
   long           finished    = 0;
   short          obchance    = 0;
@@ -168,6 +168,7 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   std::string driverfname;
   std::string timefname;
   std::string listfname;
+  std::string jsonfname;
   std::string aktname;
   std::string replayname;
   std::string elso;
@@ -179,6 +180,7 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   virtual bool WantsToDisplayMessage(MessageInfoV01 &msgInfo);
   void WritetoFileDrivername();
   void WritetoInfohtml(long session);
+  void WriteToJson(long session, const std::string& timestr);
 };
 
 

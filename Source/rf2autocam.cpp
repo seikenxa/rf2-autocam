@@ -22,6 +22,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <algorithm>            // for std::transform (case-insensitive compare)
 #include <process.h>
 #pragma comment(lib, "Ws2_32.lib")
@@ -41,7 +42,7 @@ static bool iequals(const std::string& a, const std::string& b)
 // plugin information
 
 extern "C" __declspec( dllexport )
-const char * __cdecl GetPluginName()                   { return( "rF2 autocam - 2015.09.20." ); }
+const char * __cdecl GetPluginName()                   { return( "rF2 autocam - 2026.05.24." ); }
 
 extern "C" __declspec( dllexport )
 PluginObjectType __cdecl GetPluginType()               { return( PO_INTERNALS ); }
@@ -111,6 +112,56 @@ void rF2autocam::WritetoInfohtml(long session)
 	}
 
 	flist << "</body></html>";
+}
+
+void rF2autocam::WriteToJson(long session, const std::string& timestr)
+{
+	std::ofstream f(jsonfname);
+	if (!f.is_open()) return;
+
+	// Camera type → string
+	const char* camname = "trackside";
+	if      (needcam == 0)    camname = "tvcockpit";
+	else if (needcam == 1)    camname = "cockpit";
+	else if (needcam == 2)    camname = "nosecam";
+	else if (needcam == 3)    camname = "swingman";
+	else if (needcam == rvcam && needcam != 4) camname = "rearview";
+	else if (needcam >= 5)    camname = "onboard";
+
+	// Session type → string
+	const char* sessname = "practice";
+	if      (session >= 10)              sessname = "race";
+	else if (session == 4 || session == 5 ||
+	         session == 6 || session == 7 ||
+	         session == 8 || session == 9) sessname = "qualifying";
+
+	// Escape helper (driver names may contain special chars)
+	auto jsonEscape = [](const std::string& s) {
+		std::string out;
+		out.reserve(s.size());
+		for (char c : s) {
+			if      (c == '"')  out += "\\\"";
+			else if (c == '\\') out += "\\\\";
+			else                out += c;
+		}
+		return out;
+	};
+
+	f << "{\n";
+	if (onreplay) {
+		f << "  \"driver\": \""   << jsonEscape(replayname) << "\",\n";
+		f << "  \"position\": 0,\n";
+	} else {
+		f << "  \"driver\": \""   << jsonEscape(aktname) << "\",\n";
+		f << "  \"position\": "   << aktpos << ",\n";
+	}
+	f << "  \"camera\": \""       << camname  << "\",\n";
+	f << "  \"on_replay\": "      << (onreplay ? "true" : "false") << ",\n";
+	f << "  \"session_type\": \"" << sessname << "\",\n";
+	f << "  \"time_display\": \"" << jsonEscape(timestr) << "\",\n";
+	f << "  \"gap_to_next\": "
+	  << std::fixed << std::setprecision(3) << pontosminbehind << "\n";
+	f << "}\n";
 }
 
 void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
@@ -219,6 +270,12 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 		filespath = inifilename.substr(0, inifilename.find_last_of("/\\")) + "\\rF2stream";
 		WritePrivateProfileString("AUTOCAM", "filespath", filespath.c_str(), str.c_str());
 	}
+	GetPrivateProfileString("AUTOCAM", "debug", "a", seged, sizeof(seged), str.c_str());
+	debuglog = strtol(seged, &e, 0);
+	if (0 == debuglog && seged == e) {
+		debuglog = 0;
+		WritePrivateProfileString("AUTOCAM", "debug", "0", str.c_str());
+	}
 	// environmentAlreadySet = true;
 }
 
@@ -233,10 +290,10 @@ void rF2autocam::Startup( long version )
   message.mDestination = 0;
   message.mTranslate = 0;
   if (automatic) {
-	  strcpy(message.mText, "rF2autocam 2015.09.20. Auto camera: on");	  
+	  strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: on");	  
   }
   else {
-	  strcpy(message.mText, "rF2autocam 2015.09.20. Auto camera: off");	  
+	  strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: off");	  
   }
   camvalttime = 0;
   needpos = 0;
@@ -271,10 +328,12 @@ void rF2autocam::Startup( long version )
   timefname   = filespath + "\\time.txt";
   driverfname = filespath + "\\driver.txt";
   listfname   = filespath + "\\info.html";
+  jsonfname   = filespath + "\\status.json";
 
   { std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
   { std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
   { std::ofstream f(listfname);   } // create/truncate
+  { std::ofstream f(jsonfname);   } // create/truncate
   WritetoInfohtml(0);
 }
 
@@ -320,6 +379,7 @@ void rF2autocam::StartSession()
 	{ std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
 	{ std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
 	{ std::ofstream f(listfname);   } // create/truncate
+	{ std::ofstream f(jsonfname);   } // create/truncate
 	WritetoInfohtml(0);
 }
 
@@ -455,8 +515,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 		scoringrun = true;
 		sessiontime = info.mCurrentET;
 		finished = 0;
-		allbox = true;
-		allfinished = true;		
+		allfinished = true;
 		camvalthat = waitsec + (rand() % 5);
 		if (info.mNumVehicles > 0) {
 			minbehind = 99999;
@@ -542,7 +601,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 						for (long j = 0; j < info.mNumVehicles; ++j) // searching side by side
 						{
 							VehicleScoringInfoV01 &vinfosbs = info.mVehicle[j];
-							if (abs(vinfo.mLapDist - vinfosbs.mLapDist) < 0.2) { sbs++;	}
+							if (abs(vinfo.mLapDist - vinfosbs.mLapDist) < 1.5) { sbs++; } // ~1.5m: typical side-by-side distance
 						}
 						if ((info.mGamePhase == 5) || (info.mGamePhase == 4)) // Green Flag
 						{
@@ -619,7 +678,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				if (pontosminbehind > interestsec) {					
 					if (((sessiontime - camvalttime) >= camvalthat) && (!inpit))
 					{
-						if ((rand() % 5) == 1) { needpos = rand() % info.mNumVehicles; } // random vehicle
+						if ((rand() % 5) == 1) { needpos = rand() % info.mNumVehicles + 1; } // random vehicle (1-based position)
 					}
 				}				
 				// LastLap+last+sector cam to last not finished
@@ -758,62 +817,72 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 			}
 		}
 		// FILE OUTPUTS
-		// session time to file
+		// Build time display string (shared by time.txt and status.json)
+		std::string timestr;
+		if (onreplay)
 		{
-			std::ofstream ftime(timefname);
-			if (ftime.is_open())
-			{
-				if (onreplay)
-				{
-					ftime << "REPLAY";
-				}
-				else
-				{
-					char tbuf[32] = {};
-					double remain = info.mEndET - info.mCurrentET;
-					if (info.mSession > 9) {
-						if ((info.mGamePhase > 4) && (info.mGamePhase < 8)) {
-							currentlap = completedlaps + 1;
-							if (completedlaps == 0) { completedlaps = 1; }
-							if ((remain > 0) && ((((info.mCurrentET / completedlaps) * (info.mMaxLaps - 1)) > info.mEndET) || (info.mMaxLaps == 0)))
-							{
-								snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
-								ftime << tbuf;
-							}
-							else
-							{
-								if ((currentlap == info.mMaxLaps) || ((info.mMaxLaps > 2147483640) && (remain < 0)))
-									ftime << "Last lap";
-								else
-									ftime << currentlap << " / " << info.mMaxLaps;
-							}
-						}
-						else { ftime << (info.mGamePhase == 8 ? "Race finished" : ""); }
+			timestr = "REPLAY";
+		}
+		else
+		{
+			char tbuf[32] = {};
+			double remain = info.mEndET - info.mCurrentET;
+			if (info.mSession > 9) {
+				if ((info.mGamePhase > 4) && (info.mGamePhase < 8)) {
+					currentlap = completedlaps + 1;
+					if (completedlaps == 0) { completedlaps = 1; }
+					if ((remain > 0) && ((((info.mCurrentET / completedlaps) * (info.mMaxLaps - 1)) > info.mEndET) || (info.mMaxLaps == 0)))
+					{
+						snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
+						timestr = tbuf;
 					}
-					else {
-						if (remain > 0) {
-							snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
-							ftime << tbuf;
+					else
+					{
+						if ((currentlap == info.mMaxLaps) || ((info.mMaxLaps > 2147483640) && (remain < 0)))
+							timestr = "Last lap";
+						else {
+							snprintf(tbuf, sizeof(tbuf), "%d / %d", currentlap, info.mMaxLaps);
+							timestr = tbuf;
 						}
-						else { ftime << "Session end"; }
 					}
 				}
+				else { timestr = (info.mGamePhase == 8 ? "Race finished" : ""); }
+			}
+			else {
+				if (remain > 0) {
+					snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
+					timestr = tbuf;
+				}
+				else { timestr = "Session end"; }
 			}
 		}
+		{ std::ofstream f(timefname); if (f.is_open()) f << timestr; }
 		WritetoInfohtml(info.mSession);
-		/* LOG */
-/*		FILE *fo = fopen("SCOUT.txt", "a");
-		if (fo != NULL)
-		{
-			fprintf(fo, "here=%d time=%.3f session=%d gameph=%d showinpit=%s ", here, sessiontime, info.mSession, info.mGamePhase, showinpit);
-			fprintf(fo, "intsec=%.3f intpos=%d ", interestsec, interest);
-			fprintf(fo, "onboard=%.3f wait=%d ", obtime, waitsec);
-			fprintf(fo, "pmbehind=%.3f mbehind=%.3f ", pontosminbehind, minbehind);
-			fprintf(fo, "needveh=%d aktveh=%d needpos=%d aktpos=%d ", needveh, aktveh, needpos, aktpos);
-			fprintf(fo, "replayveh=%d\n", replayveh);					
-			// Close file
-			fclose(fo);
-		} */
+		WriteToJson(info.mSession, timestr);
+		// Debug log (enable with debug=1 in ini)
+		if (debuglog) {
+			std::ofstream fo(filespath + "\\debug.log", std::ios::app);
+			if (fo.is_open()) {
+				fo << std::fixed << std::setprecision(3)
+				   << "t=" << sessiontime
+				   << " ses=" << info.mSession
+				   << " ph=" << info.mGamePhase
+				   << " sip=" << showinpit
+				   << " intdiff=" << interestsec
+				   << " obdiff=" << obtime
+				   << " wait=" << waitsec
+				   << " pmb=" << pontosminbehind
+				   << " mb=" << minbehind
+				   << " npos=" << needpos
+				   << " apos=" << aktpos
+				   << " nveh=" << needveh
+				   << " aveh=" << aktveh
+				   << " rveh=" << replayveh
+				   << " inpit=" << inpit
+				   << " sbs=" << maxsbs
+				   << "\n";
+			}
+		}
 		scoringrun = false;
 	}
 }

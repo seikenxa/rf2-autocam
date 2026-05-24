@@ -43,6 +43,7 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 | `lowinc` | `0.4` | Incident severity threshold for replay in practice/qualifying |
 | `highinc` | `0.8` | Incident severity threshold for replay in all sessions |
 | `camtest` | `no` | Camera test mode: `no`, `ob` (force onboard), `rv` (force rearview) |
+| `debug` | `0` | Write debug log to `filespath\debug.log` (0=off, 1=on) |
 
 ### Camera type numbers
 
@@ -64,6 +65,7 @@ The plugin writes files to the path set in `filespath` (default: `C:\rF2stream\`
 | `driver.txt` | Current driver name and position |
 | `time.txt` | Remaining time or lap count |
 | `info.html` | Auto-refreshing HTML with sector times |
+| `status.json` | Structured data for custom overlays (driver, position, camera, gap, session info) |
 
 Add these as "Text (GDI+)" or "Browser" sources in OBS.
 
