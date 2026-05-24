@@ -271,6 +271,8 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 		filespath = inifilename.substr(0, inifilename.find_last_of("/\\")) + "\\rF2stream";
 		WritePrivateProfileString("AUTOCAM", "filespath", filespath.c_str(), str.c_str());
 	}
+	// Create output directory if it doesn't exist (silent if already exists)
+	CreateDirectoryA(filespath.c_str(), NULL);
 	GetPrivateProfileString("AUTOCAM", "debug", "a", seged, sizeof(seged), str.c_str());
 	debuglog = strtol(seged, &e, 0);
 	if (0 == debuglog && seged == e) {
