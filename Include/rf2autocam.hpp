@@ -20,6 +20,7 @@
 #define _INTERNALS_EXAMPLE_H
 
 #include "InternalsPlugin.hpp"
+#include <string>
 
 
 // This is used for the app to use the plugin for its intended purpose
@@ -27,13 +28,11 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
 {
 
  public:
-	 bool environmentAlreadySet;
+	bool environmentAlreadySet = false;
 
   // Constructor/destructor
-	 rF2autocam() {
-		 environmentAlreadySet = false;
-	 }
-	 ~rF2autocam() {}
+	rF2autocam() = default;
+	~rF2autocam() = default;
 
   // These are the functions derived from base class InternalsPlugin
   // that can be implemented.
@@ -86,13 +85,100 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   void SetEnvironment(const EnvironmentInfoV01 &info);  
 
  private:
+  // ISI plugin base
+  double mET      = 0.0;
+  bool   mEnabled = false;
 
-  double mET;  // needed for the hardware example
-  bool mEnabled; // needed for the hardware example
-  virtual unsigned char WantsToViewVehicle(CameraControlInfoV01 &camControl); // return values: 0=do nothing, 1=set ID and camera type, 2=replay controls, 3=both
-  virtual bool WantsToDisplayMessage(MessageInfoV01 &msgInfo); // set message and return true
-  void rF2autocam::WritetoFileDrivername();
-  void rF2autocam::WritetoInfohtml(long session);
+  // INI configuration
+  long        waitsec     = 0;
+  long        interest    = 0;
+  double      obtime      = 0.0;
+  long        interestsec = 0;
+  long        automatic   = 0;
+  long        walkthrough = 0;
+  std::string showinpit;
+  long        showinpitl  = 0;
+  std::string camtest;
+  long        obcam       = 0;
+  long        rvcam       = 0;
+  long        rearview    = 0;
+  std::string inifilename;
+  std::string filespath;
+  std::string sfilename;
+  double      lowinc  = 0.0;
+  double      highinc = 0.0;
+
+  // Runtime camera state
+  std::string    sseged;
+  MessageInfoV01 message      = {};
+  long           refreshcount = 0;
+  long           camvalthat   = 0;
+  bool           scoringrun   = false;
+  long           needpos      = 0;
+  long           needspos     = 0;
+  long           needdpos     = 0;
+  long           pitpos       = 0;
+  long           needveh      = 0;
+  long           rvveh        = 0;
+  long           first        = 0;
+  long           needcam      = 4;
+  long           lastcam      = 0;
+  long           aktveh       = -1;
+  long           aktpos       = 0;
+  long           sbs          = 0;
+  long           needsbspos   = 0;
+  long           maxsbs       = 0;
+  double         minbehind         = 99999.0;
+  double         pontosminbehind   = 0.0;
+  double         aktbehind         = 0.0;
+  double         sessiontime       = 0.0;
+  double         camvalttime       = 0.0;
+  bool           allbox      = false;
+  bool           allfinished = false;
+  long           finished    = 0;
+  short          obchance    = 0;
+  bool           inpit       = false;
+
+  // Lap timing
+  double bestlapT = 2147483640.0;
+  double best1T   = 2147483640.0;
+  double best2T   = 2147483640.0;
+  double curlapT  = 0.0;
+
+  // Hotkey
+  int  autokey        = 0x41;
+  bool autokeypressed = false;
+  int  here           = 0;
+
+  // Incident replay
+  bool   needreplay    = false;
+  bool   stopreplay    = false;
+  bool   onreplay      = false;
+  double inctime       = 0.0;
+  double incsize       = 0.0;
+  long   replayveh     = -1;
+  double pinctime      = 0.0;
+  double pincsize      = 0.0;
+  long   preplayveh    = -1;
+  double replaystarted = 0.0;
+  bool   replayset     = false;
+  char   sincsize[10]  = {};
+
+  // File output
+  std::string driverfname;
+  std::string timefname;
+  std::string listfname;
+  std::string aktname;
+  std::string replayname;
+  std::string elso;
+  long completedlaps  = 0;
+  long currentlap     = 0;
+  long numveh         = 0;
+
+  virtual unsigned char WantsToViewVehicle(CameraControlInfoV01 &camControl);
+  virtual bool WantsToDisplayMessage(MessageInfoV01 &msgInfo);
+  void WritetoFileDrivername();
+  void WritetoInfohtml(long session);
 };
 
 

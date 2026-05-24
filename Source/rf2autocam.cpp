@@ -18,107 +18,25 @@
 
 #include "rf2autocam.hpp"          // corresponding header file
 #include <math.h>               // for atan2, sqrt
-#include <stdio.h>              // for sample output
-// #include<dinput.h>
-
 #include <limits>
-#include <string>         // std::string
-// socket
-//#include <ws2tcpip.h>
-// thread
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <algorithm>            // for std::transform (case-insensitive compare)
 #include <process.h>
 #pragma comment(lib, "Ws2_32.lib")
 
 #include <ctime>
 
-// variables
-// INI
-long waitsec; // minimum camera change time
-long interest; // interesting positions (1 to interest) more chance to view
-double obtime; // difference to chance onboard camera (sec)
-long interestsec; // interesting difference on race
-long automatic; // auto camera
-long walkthrough; // grid and finish walk through
-char showinpit[256];
-long showinpitl;
-char camtest[10];
-long obcam;
-long rvcam;
-long rearview; // chance onboard to rearview
-std::string inifilename;
-char filespath[256];
-std::string sfilename;
-char seged[256];
-double lowinc; // low incident. show when everyone out of close gaps
-double highinc; // high incident. show always
-
-
-std::string sseged;
-char* e;
-MessageInfoV01 message;
-long refreshcount;
-long camvalthat; // randomized camera changed time
-bool scoringrun; // updatescoring running
-long needpos;
-long needspos;
-long needdpos;
-long pitpos;
-long needveh;
-long rvveh;
-long first;
-long needcam;
-long lastcam;
-long aktveh;
-long aktpos;
-long sbs; // side by side
-long needsbspos;
-long maxsbs;
-double minbehind; // legkisebb kï¿½lï¿½nbsï¿½g kerekitett
-double pontosminbehind; // legkisebb kï¿½lï¿½nbsï¿½g pontosan
-double aktbehind; // kï¿½lï¿½nbsï¿½g
-double sessiontime;
-double camvalttime;
-bool allbox;
-bool allfinished;
-long finished; // last finished
-short obchance;
-bool inpit;
-
-double bestlapT;
-double best1T;
-double best2T;
-double curlapT;
-
-int autokey;
-bool autokeypressed;
-int here;
-
-// replay (incident) variables
-bool needreplay;
-bool stopreplay;
-bool onreplay;
-double inctime; // next to show incident time
-double incsize;
-long replayveh;
-double pinctime; // possible to show incident time
-double pincsize;
-long preplayveh;
-double replaystarted;
-bool replayset;
-char sincsize[10];
-
-// info to files
-std::string driverfname;
-std::string timefname;
-std::string listfname;
-char aktname[32];
-char replayname[32];
-char elso[32];
-long completedlaps;
-long currentlap;
-long numveh;
-
-
+// Case-insensitive string comparison helper (replaces _stricmp for std::string)
+static bool iequals(const std::string& a, const std::string& b)
+{
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i)
+        if (tolower(static_cast<unsigned char>(a[i])) != tolower(static_cast<unsigned char>(b[i])))
+            return false;
+    return true;
+}
 
 // plugin information
 
@@ -142,93 +60,63 @@ void __cdecl DestroyPluginObject(PluginObject *obj)  { delete((rF2autocam *)obj)
 
 void rF2autocam::WritetoFileDrivername()
 {
-	FILE *fdriver = fopen(driverfname.c_str(), "w");
-	if (fdriver != NULL)
+	std::ofstream fdriver(driverfname);
+	if (fdriver.is_open())
 	{
 		if (onreplay)
-		{
-			fprintf(fdriver, "%s", replayname);
-		}
+			fdriver << replayname;
 		else
-		{
-			fprintf(fdriver, "%d. %s", aktpos, aktname);
-		}
-		fclose(fdriver);
+			fdriver << aktpos << ". " << aktname;
 	}
 }
 
 void rF2autocam::WritetoInfohtml(long session)
 {
-	FILE *flist = fopen(listfname.c_str(), "w");
-	if (flist != NULL)
+	std::ofstream flist(listfname);
+	if (!flist.is_open()) return;
+
+	flist <<
+		"<!DOCTYPE html>"
+		"<html><head>"
+		"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
+		"<meta http-equiv=\"refresh\" content=\"0.5\">"
+		"<style>"
+		"body { font-size:12pt; font-family:Sans-serif; font-weight:bold; }"
+		"tr { background-size:100% 100%; }"
+		"td.head { background-color:lightgray; color:black; text-align:center; }"
+		"td.value { background-color:black; color:white; text-align:right; }"
+		"</style></head><body>";
+
+	if (!onreplay && session < 10)
 	{
-		fprintf(flist, "<!DOCTYPE html>");
-		fprintf(flist, "<html>");
-		fprintf(flist, "<head>");
-		fprintf(flist, "<meta http-equiv=\"Content - Type\" content=\"text / html; charset = utf - 8\">");
-		fprintf(flist, "<meta http-equiv=\"refresh\" content=\"0.5\">");
-		fprintf(flist, "<style>");
-		fprintf(flist, "	body {");
-		fprintf(flist, "		font-size: 12pt;");
-		fprintf(flist, "		font-family:Sans-serif;");
-		fprintf(flist, "		font-weight: bold;");
-		fprintf(flist, "	}");
-		fprintf(flist, "	tr {		");
-		fprintf(flist, "		background-size: 100%% 100%%;");
-		fprintf(flist, "	}");
-		fprintf(flist, "	td.head {");
-		fprintf(flist, "		// background-image: url('Driver.png');");
-		fprintf(flist, "		// background-repeat: no-repeat;");
-		fprintf(flist, "		background-color: lightgray;");
-		fprintf(flist, "		color: black;");
-		fprintf(flist, "		text-align: center;			");
-		fprintf(flist, "	}");
-		fprintf(flist, "	td.value {");
-		fprintf(flist, "		background-color: black;");
-		fprintf(flist, "		color: white;");
-		fprintf(flist, "		text-align: right;");
-		fprintf(flist, "	}");
-		fprintf(flist, "</style>");
-		fprintf(flist, "</head>");
-		fprintf(flist, "<body>");
-		if (!onreplay)		
-		{
-			if (session < 10)
-			{
-				fprintf(flist, "<table>");
-				fprintf(flist, "<tr>");
-				fprintf(flist, "<td class=\"head\" width=\"45px\">Best:</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">%.3f</td>", best1T);
-				fprintf(flist, "<td class=\"value\" width=\"65px\">%.3f</td>", (best2T-best1T));
-				fprintf(flist, "<td class=\"value\" width=\"65px\">%.3f</td>", (bestlapT-best2T));
-				fprintf(flist, "<td class=\"value\" width=\"80px\">%.0f:%06.3f</td>", floor((bestlapT / 60)), fmod(bestlapT, 60));
-				fprintf(flist, "</tr>");
-				fprintf(flist, "<tr>");
-				fprintf(flist, "<td class=\"head\" width=\"45px\">Dif:</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">-</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">-</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">-</td>");
-				fprintf(flist, "<td class=\"value\" width=\"80px\">-</td>");
-				fprintf(flist, "</tr>");
-				fprintf(flist, "<tr>");
-				fprintf(flist, "<td class=\"head\" width=\"45px\">Curr:</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">199.999</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">199.999</td>");
-				fprintf(flist, "<td class=\"value\" width=\"65px\">199.999</td>");
-				fprintf(flist, "<td class=\"value\" width=\"80px\">%.0f:%06.3f</td>", floor(curlapT / 60), fmod(curlapT, 60));
-				fprintf(flist, "</tr>");
-				fprintf(flist, "</table>");
-			}
-		}
-		fprintf(flist, "</body>");
-		fprintf(flist, "</html>");
-		fclose(flist);
+		char buf[128];
+		flist << "<table>";
+		flist << "<tr><td class=\"head\" width=\"45px\">Best:</td>";
+		snprintf(buf, sizeof(buf), "<td class=\"value\" width=\"65px\">%.3f</td>", best1T);        flist << buf;
+		snprintf(buf, sizeof(buf), "<td class=\"value\" width=\"65px\">%.3f</td>", best2T - best1T); flist << buf;
+		snprintf(buf, sizeof(buf), "<td class=\"value\" width=\"65px\">%.3f</td>", bestlapT - best2T); flist << buf;
+		snprintf(buf, sizeof(buf), "<td class=\"value\" width=\"80px\">%.0f:%06.3f</td>", floor(bestlapT / 60), fmod(bestlapT, 60)); flist << buf;
+		flist << "</tr>";
+		flist << "<tr><td class=\"head\" width=\"45px\">Dif:</td>"
+		         "<td class=\"value\" width=\"65px\">-</td>"
+		         "<td class=\"value\" width=\"65px\">-</td>"
+		         "<td class=\"value\" width=\"65px\">-</td>"
+		         "<td class=\"value\" width=\"80px\">-</td></tr>";
+		flist << "<tr><td class=\"head\" width=\"45px\">Curr:</td>"
+		         "<td class=\"value\" width=\"65px\">199.999</td>"
+		         "<td class=\"value\" width=\"65px\">199.999</td>"
+		         "<td class=\"value\" width=\"65px\">199.999</td>";
+		snprintf(buf, sizeof(buf), "<td class=\"value\" width=\"80px\">%.0f:%06.3f</td>", floor(curlapT / 60), fmod(curlapT, 60)); flist << buf;
+		flist << "</tr></table>";
 	}
+
+	flist << "</body></html>";
 }
 
 void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 {
-	strcpy(seged, "");
+	char seged[256] = {};
+	char* e = nullptr;
 	// as the SetEnvironment can be called several times at launch                  
 	/* if (environmentAlreadySet) {
 	return;
@@ -293,45 +181,43 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 		rvcam = 6;
 		WritePrivateProfileString("AUTOCAM", "rearviewcam", "6", str.c_str());
 	}
-	strcpy(camtest, "");
-	GetPrivateProfileString("AUTOCAM", "camtest", "0", camtest, 255, str.c_str());
-	strcpy(seged, "");
-	if (_stricmp(camtest, "0") == 0) {
-		strcpy(camtest, "no");
+	GetPrivateProfileString("AUTOCAM", "camtest", "0", seged, sizeof(seged), str.c_str());
+	camtest = seged;
+	if (iequals(camtest, "0")) {
+		camtest = "no";
 		WritePrivateProfileString("AUTOCAM", "camtest", "no", str.c_str());
 	}
-	GetPrivateProfileString("AUTOCAM", "walkthrough", "a", seged, 255, str.c_str());
+	GetPrivateProfileString("AUTOCAM", "walkthrough", "a", seged, sizeof(seged), str.c_str());
 	walkthrough = strtol(seged, &e, 0);
 	if (0 == walkthrough && seged == e) {
 		walkthrough = 1;
 		WritePrivateProfileString("AUTOCAM", "walkthrough", "1", str.c_str());
 	}
-	strcpy(showinpit, "");
-	GetPrivateProfileString("AUTOCAM", "showinpit", "0", showinpit, 255, str.c_str());
-	strcpy(seged, "");
-	if (_stricmp(showinpit,"0") == 0) {
-		strcpy(showinpit,"interestdiff");
+	GetPrivateProfileString("AUTOCAM", "showinpit", "0", seged, sizeof(seged), str.c_str());
+	showinpit = seged;
+	if (iequals(showinpit, "0")) {
+		showinpit = "interestdiff";
 		WritePrivateProfileString("AUTOCAM", "showinpit", "interestdiff", str.c_str());
 	}
-	showinpitl = strtol(showinpit, &e, 0);
-	GetPrivateProfileString("AUTOCAM", "lowinc", "a", seged, 255, str.c_str());
+	showinpitl = strtol(showinpit.c_str(), &e, 0);
+	GetPrivateProfileString("AUTOCAM", "lowinc", "a", seged, sizeof(seged), str.c_str());
 	lowinc = strtod(seged, &e);
 	if (0 == lowinc && seged == e) {
 		lowinc = 0.4;
 		WritePrivateProfileString("AUTOCAM", "lowinc", "0.4", str.c_str());
 	}
-	GetPrivateProfileString("AUTOCAM", "highinc", "a", seged, 255, str.c_str());
+	GetPrivateProfileString("AUTOCAM", "highinc", "a", seged, sizeof(seged), str.c_str());
 	highinc = strtod(seged, &e);
 	if (0 == highinc && seged == e) {
 		highinc = 0.8;
 		WritePrivateProfileString("AUTOCAM", "highinc", "0.8", str.c_str());
 	}
-	strcpy(filespath, "");
-	GetPrivateProfileString("AUTOCAM", "filespath", "0", filespath, 255, str.c_str());
-	strcpy(seged, "");
-	if (_stricmp(filespath, "0") == 0) {
-		strcpy(filespath, "c:\\rF2stream");
-		WritePrivateProfileString("AUTOCAM", "filespath", "c:\\rF2stream", str.c_str());
+	GetPrivateProfileString("AUTOCAM", "filespath", "0", seged, sizeof(seged), str.c_str());
+	filespath = seged;
+	if (iequals(filespath, "0")) {
+		// Default: rF2stream folder next to the ini file (avoids hardcoded absolute path)
+		filespath = inifilename.substr(0, inifilename.find_last_of("/\\")) + "\\rF2stream";
+		WritePrivateProfileString("AUTOCAM", "filespath", filespath.c_str(), str.c_str());
 	}
 	// environmentAlreadySet = true;
 }
@@ -378,39 +264,17 @@ void rF2autocam::Startup( long version )
   pincsize = 0;  
   completedlaps = 0;
   currentlap = 0;
-  strcpy(aktname, "");
-  strcpy(elso, "");
+  aktname.clear();
+  elso.clear();
 
-  // out files defaults  
-  sfilename = "";
-  sfilename.append(filespath);
-  sfilename.append("\\time.txt");
-  timefname = sfilename;
-  FILE *ftime = fopen(timefname.c_str(), "w");
-  if (ftime != NULL)
-  {
-	  fprintf(ftime, "-");
-	  fclose(ftime);
-  }
-  sfilename = "";
-  sfilename.append(filespath);
-  sfilename.append("\\driver.txt");
-  driverfname = sfilename;
-  FILE *fdriver = fopen(driverfname.c_str(), "w");
-  if (fdriver != NULL)
-  {
-	  fprintf(fdriver, "rF2autocam");
-	  fclose(fdriver);
-  }
-  sfilename = "";
-  sfilename.append(filespath);
-  sfilename.append("\\info.html");
-  listfname = sfilename;
-  FILE *flist = fopen(listfname.c_str(), "w");
-  if (flist != NULL)  
-  {	  
-	  fclose(flist);
-  }
+  // out files defaults
+  timefname   = filespath + "\\time.txt";
+  driverfname = filespath + "\\driver.txt";
+  listfname   = filespath + "\\info.html";
+
+  { std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
+  { std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
+  { std::ofstream f(listfname);   } // create/truncate
   WritetoInfohtml(0);
 }
 
@@ -449,27 +313,13 @@ void rF2autocam::StartSession()
 	pincsize = 0;
 	completedlaps = 0;
 	currentlap = 0;
-	strcpy(aktname, "");
-	strcpy(elso, "");
+	aktname.clear();
+	elso.clear();
 
-	// out files defaults  	
-	FILE *ftime = fopen(timefname.c_str(), "w");
-	if (ftime != NULL)
-	{
-		fprintf(ftime, "-");
-		fclose(ftime);
-	}	
-	FILE *fdriver = fopen(driverfname.c_str(), "w");
-	if (fdriver != NULL)
-	{
-		fprintf(fdriver, "rF2autocam");
-		fclose(fdriver);
-	}	
-	FILE *flist = fopen(listfname.c_str(), "w");
-	if (flist != NULL)
-	{		
-		fclose(flist);
-	}
+	// out files defaults
+	{ std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
+	{ std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
+	{ std::ofstream f(listfname);   } // create/truncate
 	WritetoInfohtml(0);
 }
 
@@ -596,9 +446,8 @@ bool rF2autocam::ForceFeedback( double &forceValue )
 
 
 void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
-{	
-	strcpy(seged, "");
-	char* e;
+{
+	char* e = nullptr;
 	here = 0;
 	// Note: function is called twice per second now (instead of once per second in previous versions)
 	if (automatic != 0) // auto mode on
@@ -625,7 +474,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				if (vinfo.mPlace == 1)
 				{
 					first = vinfo.mID;
-					strcpy(elso, vinfo.mDriverName);
+					elso = vinfo.mDriverName;
 					completedlaps = vinfo.mTotalLaps;
 				}				
 				if (vinfo.mFinishStatus == 0) { allfinished = false; }
@@ -737,9 +586,9 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				}
 				// SHOWINPIT
 				inpit = false;
-				if (((_stricmp(showinpit,"interestdiff") == 0) && (pontosminbehind > interestsec)) // showinpit interestdiff
-					|| ((_stricmp(showinpit,"onboarddiff") == 0) && (pontosminbehind > obtime)) // showinpit onboard					
-					|| (_stricmp(showinpit,"always") == 0)) // showinpit always
+				if (((iequals(showinpit,"interestdiff")) && (pontosminbehind > interestsec)) // showinpit interestdiff
+					|| ((iequals(showinpit,"onboarddiff")) && (pontosminbehind > obtime)) // showinpit onboard
+					|| iequals(showinpit,"always")) // showinpit always
 				{
 					pitpos = 0;					
 					for (long i = 0; i < info.mNumVehicles; ++i)
@@ -816,8 +665,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 			std::size_t vfound = sseged.find("vehicle");
 			if ((ifound != std::string::npos) && ((imfound != std::string::npos) || (vfound != std::string::npos)))
 			{
-				*seged = NULL;
-				*sincsize = NULL;
+				sincsize[0] = '\0';
 				std::size_t sbfound = sseged.find("(");
 				std::size_t sefound = sseged.find(")");				
 				// sseged.substr((sbfound + 1), sefound - (sbfound + 1)).copy(seged, 256);
@@ -899,56 +747,58 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 			}
 			else { needveh = aktveh; }
 		}
-		for (long i = 0; i < info.mNumVehicles; ++i) // position to slotid
+		for (long i = 0; i < info.mNumVehicles; ++i)
 		{
 			VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-			if (vinfo.mID == replayveh)
-			{
-				strcpy(replayname, vinfo.mDriverName);
-			}
+			if (vinfo.mID == replayveh) replayname = vinfo.mDriverName;
 			if (vinfo.mID == needveh)
 			{
-				strcpy(aktname, vinfo.mDriverName);
+				aktname = vinfo.mDriverName;
 				curlapT = info.mCurrentET - vinfo.mLapStartET;
-			}			
+			}
 		}
 		// FILE OUTPUTS
 		// session time to file
-		FILE *ftime = fopen(timefname.c_str(), "w");
-		if (ftime != NULL)
 		{
-			if (onreplay)
+			std::ofstream ftime(timefname);
+			if (ftime.is_open())
 			{
-				fprintf(ftime, "REPLAY");
-			}
-			else
-			{
-				if (info.mSession > 9) {
-					if ((info.mGamePhase > 4) && (info.mGamePhase < 8)) {
-						currentlap = completedlaps + 1;
-						if (completedlaps == 0) { completedlaps = 1; }
-						if (((info.mEndET - info.mCurrentET) > 0) && ((((info.mCurrentET / completedlaps) * (info.mMaxLaps - 1)) > info.mEndET) || (info.mMaxLaps == 0)))
-						{
-							fprintf(ftime, "%02.0f:%02.0f:%02.0f", floor((info.mEndET - info.mCurrentET) / 3600.0), floor(fmod((info.mEndET - info.mCurrentET), 3600.0) / 60.0), fmod((info.mEndET - info.mCurrentET), 60.0));
-						}
-						else
-						{
-							if ((currentlap == info.mMaxLaps) || ((info.mMaxLaps > 2147483640) && ((info.mEndET - info.mCurrentET) < 0))) {
-								fprintf(ftime, "Last lap");
+				if (onreplay)
+				{
+					ftime << "REPLAY";
+				}
+				else
+				{
+					char tbuf[32] = {};
+					double remain = info.mEndET - info.mCurrentET;
+					if (info.mSession > 9) {
+						if ((info.mGamePhase > 4) && (info.mGamePhase < 8)) {
+							currentlap = completedlaps + 1;
+							if (completedlaps == 0) { completedlaps = 1; }
+							if ((remain > 0) && ((((info.mCurrentET / completedlaps) * (info.mMaxLaps - 1)) > info.mEndET) || (info.mMaxLaps == 0)))
+							{
+								snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
+								ftime << tbuf;
 							}
-							else { fprintf(ftime, "%d / %d", currentlap, info.mMaxLaps); }
+							else
+							{
+								if ((currentlap == info.mMaxLaps) || ((info.mMaxLaps > 2147483640) && (remain < 0)))
+									ftime << "Last lap";
+								else
+									ftime << currentlap << " / " << info.mMaxLaps;
+							}
 						}
+						else { ftime << (info.mGamePhase == 8 ? "Race finished" : ""); }
 					}
-					else { if (info.mGamePhase == 8) { fprintf(ftime, "Race finished"); } else { fprintf(ftime, ""); } }
-				}
-				else {
-					if ((info.mEndET - info.mCurrentET) > 0) {
-						fprintf(ftime, "%02.0f:%02.0f:%02.0f", floor((info.mEndET - info.mCurrentET) / 3600.0), floor(fmod((info.mEndET - info.mCurrentET), 3600.0) / 60.0), fmod((info.mEndET - info.mCurrentET), 60.0));
+					else {
+						if (remain > 0) {
+							snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
+							ftime << tbuf;
+						}
+						else { ftime << "Session end"; }
 					}
-					else { fprintf(ftime, "Session end"); }
 				}
 			}
-			fclose(ftime);
 		}
 		WritetoInfohtml(info.mSession);
 		/* LOG */
@@ -1032,8 +882,8 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 			if (needveh != aktveh)
 			{
 				camControl.mID = needveh;
-				if (_stricmp(camtest, "ob") == 0){ needcam = obcam; }
-				else if (_stricmp(camtest, "rv") == 0) { needcam = rvcam; }
+				if (iequals(camtest, "ob")) { needcam = obcam; }
+				else if (iequals(camtest, "rv")) { needcam = rvcam; }
 				camControl.mCameraType = needcam;
 				camvalttime = sessiontime;
 				aktveh = needveh;
@@ -1045,8 +895,8 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 			if (needcam != lastcam)
 			{
 				camControl.mID = needveh;
-				if (_stricmp(camtest, "ob") == 0){ needcam = obcam; }
-				else if (_stricmp(camtest, "rv") == 0) { needcam = rvcam; }
+				if (iequals(camtest, "ob")) { needcam = obcam; }
+				else if (iequals(camtest, "rv")) { needcam = rvcam; }
 				camControl.mCameraType = needcam;
 				camvalttime = sessiontime;
 				aktveh = needveh;
