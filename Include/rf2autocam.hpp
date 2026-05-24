@@ -150,7 +150,7 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   double curlapT  = 0.0;
 
   // Hotkey (Ctrl + autokey); configured in ini
-  int  autokey        = 0x74;  // default: F5
+  int  autokey        = 0xBE;  // default: . (period / VK_OEM_PERIOD)
   bool autokeypressed = false;
 
   // Incident replay

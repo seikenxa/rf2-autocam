@@ -30,7 +30,7 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `auto` | `1` | Auto camera on/off at startup (0=off, 1=on) |
-| `autokey` | `0x74` | Virtual-key code for the toggle hotkey (Ctrl + key). Default: Ctrl+F5. See [virtual-key codes](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes) |
+| `autokey` | `0xBE` | Virtual-key code for the toggle hotkey (Ctrl + key). Default: Ctrl+`.`. See [virtual-key codes](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes) |
 | `waitsec` | `15` | Minimum seconds between camera changes (actual time adds up to +5s randomly) |
 | `interest` | `12` | Positions 1–N receive priority weighting |
 | `interestdiff` | `3` | Gap threshold (seconds) for "interesting" battle; beyond this, switches to random mode |

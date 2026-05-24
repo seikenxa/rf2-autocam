@@ -187,8 +187,8 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 	GetPrivateProfileString("AUTOCAM", "autokey", "a", seged, 255, str.c_str());
 	autokey = strtol(seged, &e, 0);
 	if (0 == autokey && seged == e) {
-		autokey = 0x74;  // default: F5
-		WritePrivateProfileString("AUTOCAM", "autokey", "0x74", str.c_str());
+		autokey = 0xBE;  // default: . (period / VK_OEM_PERIOD)
+		WritePrivateProfileString("AUTOCAM", "autokey", "0xBE", str.c_str());
 	}
 	GetPrivateProfileString("AUTOCAM", "waitsec", "a", seged, 255, str.c_str());
 	waitsec = strtol(seged, &e, 0);
