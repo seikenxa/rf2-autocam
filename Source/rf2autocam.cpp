@@ -509,9 +509,6 @@ void rF2autocam::ExitRealtime()
 
 void rF2autocam::UpdateTelemetry( const TelemInfoV01 &info )
 {
-  // Use the incoming data, for now I'll just write some of it to a file to a) make sure it
-  // is working, and b) explain the coordinate system a little bit (see header for more info) 
-  
 }
 
 
@@ -1031,7 +1028,7 @@ bool rF2autocam::RequestCommentary( CommentaryRequestInfoV01 &info )
 
 unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 {
-	if ((!scoringrun) && (automatic != 0)) {		
+	if ((!scoringrun) && (automatic != 0)) {
 		if (camControl.mReplayActive)
 		{
 			if (sessiontime > replaystarted + replayduration)
