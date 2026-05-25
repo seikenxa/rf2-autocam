@@ -228,8 +228,8 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 	GetPrivateProfileString("AUTOCAM", "autokey", "a", seged, 255, str.c_str());
 	autokey = strtol(seged, &e, 0);
 	if (0 == autokey && seged == e) {
-		autokey = 0xBE;  // default: . (period / VK_OEM_PERIOD)
-		WritePrivateProfileString("AUTOCAM", "autokey", "0xBE", str.c_str());
+		autokey = 0x41;  // default: A (VK_A) — matches h0rcs4 original default
+		WritePrivateProfileString("AUTOCAM", "autokey", "0x41", str.c_str());
 	}
 	GetPrivateProfileString("AUTOCAM", "waitsec", "a", seged, 255, str.c_str());
 	waitsec = strtol(seged, &e, 0);
@@ -475,6 +475,8 @@ void rF2autocam::StartSession()
 	currentlap = 0;
 	aktname.clear();
 	elso.clear();
+	prevResultsStream.clear();
+	prevResultsReady = false;
 
 	// out files defaults
 	{ std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
@@ -802,12 +804,26 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				camvalthat = 2;
 				needpos = 1;
 			}
-			// INCIDENTS DETECTION FROM mResultsStream
+			// INCIDENTS DETECTION FROM mResultsStream (diff-based: process new text only)
+			// prevResultsStream tracks what we have already processed.
+			// On the first UpdateScoring after a session start, we just establish a baseline
+			// (skipping any stale events from the previous session) to avoid false replays.
 			sseged = "";
-			const char *ptr = info.mResultsStream;
-			while (*ptr != NULL)
-			{				
-				sseged += *ptr++;
+			{
+				const std::string currentStream(info.mResultsStream);
+				if (!prevResultsReady) {
+					// First call after session start: baseline only, no processing
+					prevResultsStream = currentStream;
+					prevResultsReady  = true;
+				} else if (currentStream.length() > prevResultsStream.length()) {
+					// New content appended — process only the newly added portion
+					sseged = currentStream.substr(prevResultsStream.length());
+					prevResultsStream = currentStream;
+				} else if (currentStream.length() < prevResultsStream.length()) {
+					// Stream was reset unexpectedly — update baseline, nothing to process
+					prevResultsStream = currentStream;
+				}
+				// If length unchanged: nothing new, sseged stays ""
 			}
 			std::size_t ifound = sseged.find("Incident");
 			std::size_t imfound = sseged.find("Immovable");

@@ -171,6 +171,8 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   double replaystarted = 0.0;
   bool   replayset     = false;
   char   sincsize[10]  = {};
+  std::string prevResultsStream;              // last seen mResultsStream content (diff tracking)
+  bool        prevResultsReady = false;       // false until first UpdateScoring after session start
 
   // File output
   std::string driverfname;
