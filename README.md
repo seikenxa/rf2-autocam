@@ -139,6 +139,7 @@ Updated every ~0.5 seconds. Example:
 |------|--------|-------|
 | rFactor 2 | ✅ Supported | Full feature set |
 | Le Mans Ultimate | ✅ Supported | Camera switching via REST API. Instant replay not supported |
+| Saved replay files | ⛔ Not supported | Plugin callbacks are not active during replay playback. Live sessions only. |
 
 ### LMU technical notes
 

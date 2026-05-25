@@ -981,7 +981,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				fo << std::fixed << std::setprecision(3)
 				   << "t=" << sessiontime
 				   << " ses=" << info.mSession
-				   << " ph=" << info.mGamePhase
+				   << " ph=" << (int)info.mGamePhase
 				   << " sip=" << showinpit
 				   << " intdiff=" << interestsec
 				   << " obdiff=" << obtime
@@ -995,6 +995,7 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 				   << " rveh=" << replayveh
 				   << " inpit=" << inpit
 				   << " sbs=" << maxsbs
+				   << " stream_len=" << strlen(info.mResultsStream)
 				   << "\n";
 			}
 		}
