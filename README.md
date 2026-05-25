@@ -30,10 +30,15 @@ Recommended: set instant replay length to 180 seconds in rF2 settings.
 
 ### Le Mans Ultimate
 
-1. Navigate to `<LeMansUltimate>\Bin\Plugins\` — create the folder if it does not exist
-2. Copy `rf2autocam_x64.dll` into it
-3. In LMU: **Settings → Gameplay → Enable Plugins: ON**
-4. Launch a session — the plugin will create `rF2autocam.ini` in `UserData\player\` on first run
+1. Copy `rf2autocam_x64.dll` to `<LeMansUltimate>\Plugins\` — create the folder if it does not exist
+2. Add the following entry to `<LeMansUltimate>\UserData\player\CustomPluginVariables.JSON`:
+   ```json
+   "rf2autocam_x64.dll": {
+     " Enabled": 1
+   }
+   ```
+   Set `" Enabled": 0` to disable the plugin without removing the DLL.
+3. Launch a session — the plugin will create `rF2autocam.ini` in `UserData\player\` on first run
 
 > **Note:** LMU camera control uses the game's built-in REST API (`localhost:6397`).  
 > The plugin switches cameras automatically via `PUT /rest/watch/focus/{slotId}`.  
