@@ -249,9 +249,10 @@ void rF2autocam::WriteToJson(long session, const std::string& timestr)
 		f << "  \"position\": "   << aktpos << ",\n";
 	}
 	f << "  \"camera\": \""       << camname  << "\",\n";
-	f << "  \"on_replay\": "      << (onreplay  ? "true" : "false") << ",\n";
-	f << "  \"autocam\": "        << (automatic ? "true" : "false") << ",\n";
-	f << "  \"session_type\": \"" << sessname << "\",\n";
+	f << "  \"on_replay\": "        << (onreplay      ? "true" : "false") << ",\n";
+	f << "  \"autocam\": "          << (automatic     ? "true" : "false") << ",\n";
+	f << "  \"player_driving\": "   << (playerDriving ? "true" : "false") << ",\n";
+	f << "  \"session_type\": \""   << sessname << "\",\n";
 	f << "  \"game_phase\": \""   << phasename << "\",\n";
 	f << "  \"time_display\": \"" << jsonEscape(timestr) << "\",\n";
 	f << "  \"gap_to_next\": "
@@ -597,7 +598,16 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 {
     // Ctrl+autokey toggle — fallback for LMU (rF2 handles it via CheckHWControl with HUD)
     if (key_pressed(VK_CONTROL) && key_pressed(autokey)) {
-        if (!autokeypressed) { automatic = !automatic; }
+        if (!autokeypressed) {
+            automatic = !automatic;
+            if (automatic) {
+                // Skip the normal waitsec delay so the first switch fires immediately
+                camvalttime = info.mCurrentET - waitsec - 5.0;
+                strcpy(message.mText, "Auto camera: on");
+            } else {
+                strcpy(message.mText, "Auto camera: off");
+            }
+        }
         autokeypressed = true;
     } else {
         autokeypressed = false;
@@ -614,6 +624,16 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 
     if (info.mNumVehicles > 0) {
         ScanVehicles(info);
+
+        // Safety: never switch another driver's camera while the local player
+        // is actively driving (mFinishStatus==0). In LMU this is critical because
+        // SwitchCameraViaREST() would forcibly move the camera mid-race.
+        // Output files are still written so OBS stays updated.
+        if (playerDriving) {
+            WriteSessionOutputs(info);
+            scoringrun = false;
+            return;
+        }
 
         if (info.mSession < 10) SelectCameraQualifying(info);
         if (info.mSession > 9)  SelectCameraRace(info);
@@ -678,10 +698,14 @@ void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
     needpos = 0; needspos = 0; needdpos = 0; needsbspos = 0;
     inpit   = false;
     maxsbs  = 0;
+    playerDriving = false;
 
     for (long i = 0; i < info.mNumVehicles; ++i)
     {
         VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        // Detect local player with an active car (not finished/DNF/DQ)
+        if (vinfo.mIsPlayer && vinfo.mFinishStatus == 0)
+            playerDriving = true;
         if (vinfo.mPlace == 1)
         {
             first         = vinfo.mID;

@@ -26,6 +26,8 @@ obs = obslua
 -- Order here determines display order in the settings panel.
 
 local TRIGGER_KEYS = {
+    "player_driving_start",
+    "player_driving_end",
     "replay_start",
     "replay_end",
     "battle_start",
@@ -41,6 +43,8 @@ local TRIGGER_KEYS = {
 }
 
 local TRIGGER_LABELS = {
+    player_driving_start = "Player driving started  (player_driving: false → true)",
+    player_driving_end   = "Player driving ended / spectating  (player_driving: true → false)",
     replay_start    = "Replay started  (on_replay: false → true)",
     replay_end      = "Replay ended    (on_replay: true → false)",
     battle_start    = "Battle started  (in_battle: false → true)",
@@ -200,25 +204,33 @@ local function poll()
     local data = read_json(path)
     if not data then return end
 
-    local on_replay  = obs.obs_data_get_bool(data,   "on_replay")
-    local in_battle  = obs.obs_data_get_bool(data,   "in_battle")
-    local sbs_active = obs.obs_data_get_bool(data,   "sbs_active")
-    local leader     = obs.obs_data_get_string(data, "leader")     or ""
-    local game_phase = obs.obs_data_get_string(data, "game_phase") or ""
+    local on_replay      = obs.obs_data_get_bool(data,   "on_replay")
+    local in_battle      = obs.obs_data_get_bool(data,   "in_battle")
+    local sbs_active     = obs.obs_data_get_bool(data,   "sbs_active")
+    local player_driving = obs.obs_data_get_bool(data,   "player_driving")
+    local leader         = obs.obs_data_get_string(data, "leader")     or ""
+    local game_phase     = obs.obs_data_get_string(data, "game_phase") or ""
 
     obs.obs_data_release(data)
 
     -- First successful poll: establish baseline without firing any triggers.
     if not initialized then
-        prev.on_replay  = on_replay
-        prev.in_battle  = in_battle
-        prev.sbs_active = sbs_active
-        prev.leader     = leader
-        prev.game_phase = game_phase
-        initialized     = true
-        log("Baseline established (leader=" .. leader
-            .. " phase=" .. game_phase .. ")")
+        prev.on_replay      = on_replay
+        prev.in_battle      = in_battle
+        prev.sbs_active     = sbs_active
+        prev.player_driving = player_driving
+        prev.leader         = leader
+        prev.game_phase     = game_phase
+        initialized         = true
+        log("Baseline established (player_driving=" .. tostring(player_driving)
+            .. " leader=" .. leader .. " phase=" .. game_phase .. ")")
         return
+    end
+
+    -- player_driving ----------------------------------------------------------
+    if player_driving ~= prev.player_driving then
+        fire_trigger(player_driving and "player_driving_start" or "player_driving_end")
+        prev.player_driving = player_driving
     end
 
     -- on_replay ---------------------------------------------------------------

@@ -190,7 +190,8 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   long numveh         = 0;
 
   bool environmentAlreadySet = false;
-  long gamePhase = 0;  // mGamePhase snapshot for WriteToJson
+  long gamePhase     = 0;     // mGamePhase snapshot for WriteToJson
+  bool playerDriving = false; // true when local player has an active car on track
 
   virtual unsigned char WantsToViewVehicle(CameraControlInfoV01 &camControl);
   virtual bool WantsToDisplayMessage(MessageInfoV01 &msgInfo);
