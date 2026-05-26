@@ -1,7 +1,7 @@
 ---v1.1.1 (2026-05-26)------------------------------------------------------------------------------------------------------
 - FIX: Ctrl+key toggle now works in Le Mans Ultimate (CheckHWControl is not called by LMU;
   added fallback detection in UpdateScoring)
-- FIX: Corrected LMU plugin installation path in documentation (Bin64\Plugins\, not Plugins\)
+- (no other changes)
 
 ---v1.1.0 (2026-05-26)------------------------------------------------------------------------------------------------------
 - FIX: Incident replay loop bug — mResultsStream is now diff-tracked to prevent re-firing
