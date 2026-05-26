@@ -139,7 +139,7 @@ Updated every ~0.5 seconds. Example:
 |------|--------|-------|
 | rFactor 2 | ✅ Supported | Full feature set |
 | Le Mans Ultimate | ✅ Supported | Camera switching via REST API. Instant replay not supported |
-| Saved replay files | ⛔ Not supported | Plugin callbacks are not active during replay playback. Live sessions only. |
+| Saved replay files | ⛔ Not supported | Plugin callbacks are not active during replay playback. Live sessions only. See [docs/replay-not-supported.md](docs/replay-not-supported.md) |
 
 ### LMU technical notes
 
@@ -151,6 +151,8 @@ Instead, this plugin uses LMU's built-in REST API to switch cameras:
 
 The REST API is only accessible from the same machine (loopback only).  
 The plugin calls it from a background thread to avoid any impact on frame timing.
+
+For a full technical overview of how the plugin works internally, see [docs/plugin-architecture.md](docs/plugin-architecture.md).
 
 ## Credits
 
