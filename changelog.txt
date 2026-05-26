@@ -1,3 +1,20 @@
+---v1.1.1 (2026-05-26)------------------------------------------------------------------------------------------------------
+- FIX: Ctrl+key toggle now works in Le Mans Ultimate (CheckHWControl is not called by LMU;
+  added fallback detection in UpdateScoring)
+- FIX: Corrected LMU plugin installation path in documentation (Bin64\Plugins\, not Plugins\)
+
+---v1.1.0 (2026-05-26)------------------------------------------------------------------------------------------------------
+- FIX: Incident replay loop bug — mResultsStream is now diff-tracked to prevent re-firing
+  the same incident across multiple UpdateScoring calls
+- FIX: mGamePhase logged as garbled bytes — cast to int in debug output
+- NEW: Le Mans Ultimate support — camera switching via REST API (PUT /rest/watch/focus/{slotId})
+- NEW: Automatic rF2/LMU detection at startup (checks localhost:6397)
+- NEW: JSON output (status.json) with driver, position, camera, on_replay, autocam fields
+- NEW: SBS and replay settings externalized to ini file
+- FIX: rand() % 1 bug — random mode now actually randomizes
+- FIX: Hardcoded path removed — filespath defaults to UserData\player\rF2stream\
+- CHANGE: Default toggle key restored to Ctrl+A (0x41) for compatibility with h0rcs4 original
+
 ---2015.09.13---------------------------------------------------------------------------------------------------------------
 - FIX: Incident mID detection
 - Register incident with Immovable or another car only.
