@@ -28,8 +28,6 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
 {
 
  public:
-	bool environmentAlreadySet = false;
-
   // Constructor/destructor
 	rF2autocam() = default;
 	~rF2autocam() = default;
@@ -85,6 +83,11 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   void SetEnvironment(const EnvironmentInfoV01 &info);  
 
  private:
+  // ── Constants ────────────────────────────────────────────────────────────
+  static constexpr double kNoLapTime    = 2147483640.0; // sentinel: no valid lap time recorded
+  static constexpr long   kNoLapLimit   = 2147483640;   // sentinel: session has no lap limit (time-based race)
+  static constexpr long   kCamTrackside = 4;            // trackside camera type index
+
   // ISI plugin base
   double mET      = 0.0;
   bool   mEnabled = false;
@@ -126,7 +129,7 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   long           needveh      = 0;
   long           rvveh        = 0;
   long           first        = 0;
-  long           needcam      = 4;
+  long           needcam      = kCamTrackside;
   long           lastcam      = 0;
   long           aktveh       = -1;
   long           aktpos       = 0;
@@ -144,9 +147,9 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   bool           inpit       = false;
 
   // Lap timing
-  double bestlapT = 2147483640.0;
-  double best1T   = 2147483640.0;
-  double best2T   = 2147483640.0;
+  double bestlapT = kNoLapTime;
+  double best1T   = kNoLapTime;
+  double best2T   = kNoLapTime;
   double curlapT  = 0.0;
 
   // Hotkey (Ctrl + autokey); configured in ini
@@ -186,8 +189,20 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   long currentlap     = 0;
   long numveh         = 0;
 
+  bool environmentAlreadySet = false;
+
   virtual unsigned char WantsToViewVehicle(CameraControlInfoV01 &camControl);
   virtual bool WantsToDisplayMessage(MessageInfoV01 &msgInfo);
+  void ResetSessionState();      // resets all per-session runtime state
+
+  // UpdateScoring sub-routines
+  void ScanVehicles(const ScoringInfoV01& info);           // prelist pass: leader, best lap, allfinished
+  void SelectCameraQualifying(const ScoringInfoV01& info); // practice / qualifying camera logic
+  void SelectCameraRace(const ScoringInfoV01& info);       // race camera logic (SBS, pit, last lap)
+  void DetectIncidents(const ScoringInfoV01& info);        // parse mResultsStream for incidents
+  void ResolveTargetVehicle(const ScoringInfoV01& info);   // needpos → needveh + camera type
+  void WriteSessionOutputs(const ScoringInfoV01& info);    // timestr, file writes, debug log
+
   void WritetoFileDrivername();
   void WritetoInfohtml(long session);
   void WriteToJson(long session, const std::string& timestr);

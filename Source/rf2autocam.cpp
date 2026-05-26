@@ -99,6 +99,43 @@ void __cdecl DestroyPluginObject(PluginObject *obj)  { delete((rF2autocam *)obj)
 
 // ExampleInternalsPlugin class
 
+void rF2autocam::ResetSessionState()
+{
+    camvalttime   = 0.0;
+    needpos       = 0;
+    needspos      = 0;
+    needdpos      = 0;
+    needveh       = 0;
+    aktveh        = -1;
+    aktpos        = 0;
+    needcam       = kCamTrackside;
+    lastcam       = 0;
+    refreshcount  = 0;
+    bestlapT      = kNoLapTime;
+    best1T        = kNoLapTime;
+    best2T        = kNoLapTime;
+    inpit         = false;
+    sbs           = 0;
+    maxsbs        = 0;
+    needreplay    = false;
+    onreplay      = false;
+    stopreplay    = false;
+    replaystarted = 0.0;
+    replayset     = false;
+    replayveh     = -1;
+    inctime       = 0.0;
+    incsize       = 0.0;
+    preplayveh    = -1;
+    pinctime      = 0.0;
+    pincsize      = 0.0;
+    completedlaps = 0;
+    currentlap    = 0;
+    aktname.clear();
+    elso.clear();
+    prevResultsStream.clear();
+    prevResultsReady = false;
+}
+
 void rF2autocam::WritetoFileDrivername()
 {
 	std::ofstream fdriver(driverfname);
@@ -165,7 +202,7 @@ void rF2autocam::WriteToJson(long session, const std::string& timestr)
 	else if (needcam == 1)    camname = "cockpit";
 	else if (needcam == 2)    camname = "nosecam";
 	else if (needcam == 3)    camname = "swingman";
-	else if (needcam == rvcam && needcam != 4) camname = "rearview";
+	else if (needcam == rvcam && needcam != kCamTrackside) camname = "rearview";
 	else if (needcam >= 5)    camname = "onboard";
 
 	// Session type → string
@@ -382,60 +419,31 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 
 void rF2autocam::Startup( long version )
 {
-  // Open ports, read configs, whatever you need to do.  For now, I'll just clear out the
-  // example output data files.
-	srand(static_cast<unsigned int>(time(NULL)));
+    srand(static_cast<unsigned int>(time(NULL)));
 
-  // default HW control enabled to true
-  mEnabled = true;
-  message.mDestination = 0;
-  message.mTranslate = 0;
-  if (automatic) {
-	  strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: on");	  
-  }
-  else {
-	  strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: off");	  
-  }
-  camvalttime = 0;
-  needpos = 0;
-  needveh = 0;
-  aktveh = -1;
-  aktpos = 0;
-  needcam = 4;
-  refreshcount = 0;
-  bestlapT = 2147483640;
-  best1T = 2147483640;
-  best2T = 2147483640;
-  inpit = false;
-  sbs = 0;
-  maxsbs = 0;
-  needreplay = false;
-  onreplay = false;
-  stopreplay = false;
-  replaystarted = 0;
-  replayset = false;
-  replayveh = -1;
-  inctime = 0;
-  incsize = 0;
-  preplayveh = -1;
-  pinctime = 0;
-  pincsize = 0;  
-  completedlaps = 0;
-  currentlap = 0;
-  aktname.clear();
-  elso.clear();
+    // default HW control enabled to true
+    mEnabled = true;
+    message.mDestination = 0;
+    message.mTranslate = 0;
+    if (automatic) {
+        strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: on");
+    } else {
+        strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: off");
+    }
 
-  // out files defaults
-  timefname   = filespath + "\\time.txt";
-  driverfname = filespath + "\\driver.txt";
-  listfname   = filespath + "\\info.html";
-  jsonfname   = filespath + "\\status.json";
+    // out files defaults (must be set before ResetSessionState writes them)
+    timefname   = filespath + "\\time.txt";
+    driverfname = filespath + "\\driver.txt";
+    listfname   = filespath + "\\info.html";
+    jsonfname   = filespath + "\\status.json";
 
-  { std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
-  { std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
-  { std::ofstream f(listfname);   } // create/truncate
-  { std::ofstream f(jsonfname);   } // create/truncate
-  WritetoInfohtml(0);
+    ResetSessionState();
+
+    { std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
+    { std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
+    { std::ofstream f(listfname);   } // create/truncate
+    { std::ofstream f(jsonfname);   } // create/truncate
+    WritetoInfohtml(0);
 }
 
 
@@ -447,43 +455,13 @@ void rF2autocam::Shutdown()
 
 void rF2autocam::StartSession()
 {
-	camvalttime = 0;
-	needpos = 0;
-	needveh = 0;
-	aktveh = -1;
-	aktpos = 0;
-	needcam = 4;
-	refreshcount = 0;
-	bestlapT = 2147483640;
-	best1T = 2147483640;
-	best2T = 2147483640;
-	inpit = false;
-	sbs = 0;
-	maxsbs = 0;
-	needreplay = false;
-	onreplay = false;
-	stopreplay = false;
-	replaystarted = 0;
-	replayset = false;
-	replayveh = -1;
-	inctime = 0;
-	incsize = 0;
-	preplayveh = -1;
-	pinctime = 0;
-	pincsize = 0;
-	completedlaps = 0;
-	currentlap = 0;
-	aktname.clear();
-	elso.clear();
-	prevResultsStream.clear();
-	prevResultsReady = false;
+    ResetSessionState();
 
-	// out files defaults
-	{ std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
-	{ std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
-	{ std::ofstream f(listfname);   } // create/truncate
-	{ std::ofstream f(jsonfname);   } // create/truncate
-	WritetoInfohtml(0);
+    { std::ofstream f(timefname);   if (f.is_open()) f << "-"; }
+    { std::ofstream f(driverfname); if (f.is_open()) f << "rF2autocam"; }
+    { std::ofstream f(listfname);   } // create/truncate
+    { std::ofstream f(jsonfname);   } // create/truncate
+    WritetoInfohtml(0);
 }
 
 
@@ -597,417 +575,439 @@ bool rF2autocam::ForceFeedback( double &forceValue )
 
 void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 {
-	char* e = nullptr;
-	// Ctrl+autokey toggle — fallback for games (e.g. LMU) that do not call CheckHWControl.
-	// CheckHWControl handles the same logic for rF2 (with HUD message support).
-	if (key_pressed(VK_CONTROL) && key_pressed(autokey)) {
-		if (!autokeypressed) {
-			automatic = !automatic;
-		}
-		autokeypressed = true;
-	} else {
-		autokeypressed = false;
-	}
-	// Note: function is called twice per second now (instead of once per second in previous versions)
-	if (automatic != 0) // auto mode on
-	{		
-		scoringrun = true;
-		sessiontime = info.mCurrentET;
-		finished = 0;
-		allfinished = true;
-		camvalthat = waitsec + (rand() % 5);
-		if (info.mNumVehicles > 0) {
-			minbehind = 99999;
-			pontosminbehind = obtime + 1;
-			numveh = info.mNumVehicles;
-			needpos = 0;
-			needspos = 0;
-			needdpos = 0;
-			needsbspos = 0;
-			inpit = false;
-			maxsbs = 0;
-			for (long i = 0; i < info.mNumVehicles; ++i) // prelist: bestlap, bestsector, first, allfinished etc...
-			{
-				VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-				if (vinfo.mPlace == 1)
-				{
-					first = vinfo.mID;
-					elso = vinfo.mDriverName;
-					completedlaps = vinfo.mTotalLaps;
-				}				
-				if (vinfo.mFinishStatus == 0) { allfinished = false; }
-				if ((vinfo.mBestLapTime < bestlapT) && (vinfo.mBestLapTime > 0))
-				{
-					bestlapT = vinfo.mBestLapTime;
-					best1T = vinfo.mBestSector1;
-					best2T = vinfo.mBestSector2;					
-				}				
-			}
-			if (info.mSession < 10) { //Practie, qualy, warmup etc
-				for (long i = 0; i < info.mNumVehicles; ++i) // searching who is better lap
-				{
-					VehicleScoringInfoV01 &vinfo = info.mVehicle[i];					
-					if ((vinfo.mCurSector2 > 0) && ((vinfo.mCurSector2+vinfo.mCurSector1) < (best1T+best2T)) && ((needdpos > vinfo.mPlace) || (needdpos == 0)))
-					{
-						if ((sessiontime - camvalttime) >= camvalthat) {
-							needdpos = vinfo.mPlace;
-						}
-						pontosminbehind = (float) 0.01; // hogy valthasson onboardra
-					}
-					if ((vinfo.mCurSector1 > 0) && (vinfo.mCurSector2 == 0) && (vinfo.mCurSector1 < best1T) && ((needspos > vinfo.mPlace) || (needspos == 0)))
-					{
-						if ((sessiontime - camvalttime) >= camvalthat) {
-							needspos = vinfo.mPlace;
-						}
-						pontosminbehind = (float) 0.01; // hogy valthasson onboardra
-					}
-					if ((vinfo.mCurSector1 > 0) && ((needpos > vinfo.mPlace) || (needpos == 0)))
-					{
-						if ((sessiontime - camvalttime) >= camvalthat) {
-							needpos = vinfo.mPlace;
-						}
-						pontosminbehind = (float) 0.01; // hogy valthasson onboardra
-					}
-				}
-				if (needspos != 0) { needpos = needspos; }
-				if (needdpos != 0) { needpos = needdpos; }
-				if (needpos == 0) {
-					for (long i = 0; i < info.mNumVehicles; ++i) // searching who is on track
-					{
-						VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-						if (((vinfo.mPitState == 0) || (vinfo.mPitState == 4)) && ((needpos > vinfo.mPlace) || (needpos == 0))) {
-							needpos = vinfo.mPlace; 
-						}
-					}
-				}
-			} // Time attack end
-			if (info.mSession > 9) { // race
-				for (long i = 0; i < info.mNumVehicles; ++i) // searching minimum difference
-				{
-					VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-					if ((vinfo.mFinishStatus == 1) && (finished < vinfo.mPlace)) { finished = vinfo.mPlace; }					
-					if ((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0))
-					{
-						if ((vinfo.mPlace > interest) && (vinfo.mTimeBehindNext > obtime))
-						{
-							aktbehind = round((abs(vinfo.mTimeBehindNext + 0.5)/3) * 10);
-						}
-						else
-						{
-							aktbehind = round((abs(vinfo.mTimeBehindNext)/3) * 10);
-						}
-						sbs = 0;
-						for (long j = 0; j < info.mNumVehicles; ++j) // searching side by side
-						{
-							VehicleScoringInfoV01 &vinfosbs = info.mVehicle[j];
-							if (abs(vinfo.mLapDist - vinfosbs.mLapDist) < sbsdist) { sbs++; }
-						}
-						if ((info.mGamePhase == 5) || (info.mGamePhase == 4)) // Green Flag
-						{
-							if ((aktbehind <= minbehind) && (vinfo.mTimeBehindNext != 0))
-							{
-								if (aktbehind == minbehind)
-								{
-									if ((vinfo.mPlace < needpos) || (needpos == 0))
-									{
-										minbehind = aktbehind;
-										pontosminbehind = abs(vinfo.mTimeBehindNext);
-										needpos = vinfo.mPlace;
-									}
-								}
-								else
-								{
-									minbehind = aktbehind;
-									pontosminbehind = abs(vinfo.mTimeBehindNext);
-									needpos = vinfo.mPlace;
-								}
-							}
-							if ((sbs > maxsbs) && (sbs >= sbscount) && ((needsbspos == 0) || (vinfo.mPlace < needsbspos)))
-							{
-								maxsbs = sbs;
-								needsbspos = vinfo.mPlace;								
-							}
-						}
-						else if (info.mGamePhase == 3) { // cicling on formation lap							
-							if ((aktpos < info.mNumVehicles) && (walkthrough == 1)) { needpos = aktpos + 1; }
-							else { needpos = 1; }
-						}
-						else { 
-							camvalthat = 2;
-							needpos = 1;							
-						}
-					}
-				} // difference check end
-				if (maxsbs >= sbscount) { // cars side by side
-					needpos = needsbspos;
-					pontosminbehind = obtime + 1; // disable onboard
-				}
-				// SHOWINPIT
-				inpit = false;
-				if (((iequals(showinpit,"interestdiff")) && (pontosminbehind > interestsec)) // showinpit interestdiff
-					|| ((iequals(showinpit,"onboarddiff")) && (pontosminbehind > obtime)) // showinpit onboard
-					|| iequals(showinpit,"always")) // showinpit always
-				{
-					pitpos = 0;					
-					for (long i = 0; i < info.mNumVehicles; ++i)
-					{
-						VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-						if (((vinfo.mPitState == 2) || (vinfo.mPitState == 4)) && (vinfo.mFinishStatus == 0) && ((pitpos == 0) || (pitpos > vinfo.mPlace))) {
-							inpit = true;
-							pitpos = vinfo.mPlace;							
-						}
-					}
-				} else
-				if (showinpitl > 0) { // show top<n>
-					pitpos = 0;
-					for (long i = 0; i < info.mNumVehicles; ++i)
-					{
-						VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-						if ((vinfo.mPitState > 1) && (vinfo.mFinishStatus == 0) && ((pitpos == 0) || (pitpos > vinfo.mPlace)) && (vinfo.mPlace <= showinpitl)) {
-							inpit = true;
-							pitpos = vinfo.mPlace;							
-						}
-					}
-				}
-				if (inpit && (pitpos != 0)) {
-					needpos = pitpos;
-					pontosminbehind = obtime + 1; // disable onboard
-				}
-				// SHOWINPIT END
-				if (pontosminbehind > interestsec) {					
-					if (((sessiontime - camvalttime) >= camvalthat) && (!inpit))
-					{
-						if ((rand() % 5) == 1) { needpos = rand() % info.mNumVehicles + 1; } // random vehicle (1-based position)
-					}
-				}				
-				// LastLap+last+sector cam to last not finished
-				for (long i = 0; i < info.mNumVehicles; ++i)
-				{
-					VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-					if (vinfo.mFinishStatus == 0)
-					{
-						if ((((info.mMaxLaps - 1) == (vinfo.mTotalLaps)) || (((info.mEndET - sessiontime) < 20) && (info.mEndET > 0))) && (vinfo.mSector == 0) && (vinfo.mPlace == (finished + 1)))
-						{
-							needpos = vinfo.mPlace;
-							pontosminbehind = obtime + 1; // disable onboard
-							camvalthat = 2;
-						}
-						allfinished = false;
-					}
-				}				
-			} // race end			
-			if (allfinished) {
-				camvalthat = waitsec + (rand() % 10);				
-				if ((aktpos < 3) && (walkthrough == 1)) { // all racers finished cicling first 3
-					needpos = aktpos + 1;
-					pontosminbehind = obtime + 1; // disable onboard
-				}
-				else {					
-					needpos = 1;
-					pontosminbehind = obtime + 1; // disable onboard
-				}
-			}
-			if ((needpos == 0)) { // not find anyone (eg.: everyone in the pit)
-				camvalthat = 2;
-				needpos = 1;
-			}
-			// INCIDENTS DETECTION FROM mResultsStream (diff-based: process new text only)
-			// prevResultsStream tracks what we have already processed.
-			// On the first UpdateScoring after a session start, we just establish a baseline
-			// (skipping any stale events from the previous session) to avoid false replays.
-			sseged = "";
-			{
-				const std::string currentStream(info.mResultsStream);
-				if (!prevResultsReady) {
-					// First call after session start: baseline only, no processing
-					prevResultsStream = currentStream;
-					prevResultsReady  = true;
-				} else if (currentStream.length() > prevResultsStream.length()) {
-					// New content appended — process only the newly added portion
-					sseged = currentStream.substr(prevResultsStream.length());
-					prevResultsStream = currentStream;
-				} else if (currentStream.length() < prevResultsStream.length()) {
-					// Stream was reset unexpectedly — update baseline, nothing to process
-					prevResultsStream = currentStream;
-				}
-				// If length unchanged: nothing new, sseged stays ""
-			}
-			std::size_t ifound = sseged.find("Incident");
-			std::size_t imfound = sseged.find("Immovable");
-			std::size_t vfound = sseged.find("vehicle");
-			if ((ifound != std::string::npos) && ((imfound != std::string::npos) || (vfound != std::string::npos)))
-			{
-				sincsize[0] = '\0';
-				std::size_t sbfound = sseged.find("(");
-				std::size_t sefound = sseged.find(")");				
-				// sseged.substr((sbfound + 1), sefound - (sbfound + 1)).copy(seged, 256);
-				std::size_t sibfound = sseged.find("contact (");
-				std::size_t siefound = sseged.find(") with");				
-				sseged.substr(sibfound + 9, siefound - sibfound - 9).copy(sincsize, 10);
-				if ((strtod(sincsize, &e) > pincsize) && (strtod(sincsize, &e) > lowinc))
-				{
-					// preplayveh = strtol(seged, &e, 0);
-					preplayveh = strtol(sseged.substr((sbfound + 1), sefound - (sbfound + 1)).c_str(), &e, 0);
-					pincsize = strtod(sincsize, &e);
-					pinctime = sessiontime;
-					// strcpy(message.mText, sseged.substr((sbfound + 1), sefound - (sbfound + 1)).c_str());
-				}
-			}
-			if ((!needreplay) && (!onreplay) && (sessiontime <(pinctime + 180)))
-			{
-				if ((pincsize >= highinc) ||
-					((pincsize >= lowinc) && (info.mSession < 10)))
-				{
-					incsize = pincsize;
-					replayveh = preplayveh;
-					inctime = pinctime;
-					needreplay = true;
-					pincsize = 0;
-				}
-				if ((pincsize >= lowinc) && (info.mSession < 10) && ((pontosminbehind <= obtime) && (pontosminbehind >= 0.04)))
-				{
-					incsize = pincsize;
-					replayveh = preplayveh;
-					inctime = pinctime;
-					needreplay = true;
-					pincsize = 0;
-				}
-			}
-			// INCIDENTS END
-			if ((sessiontime - camvalttime) > camvalthat)
-			{
-				for (long i = 0; i < info.mNumVehicles; ++i) // position to slotid
-				{
-					VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-					if (vinfo.mPlace == needpos) // onboard
-					{
-						if (((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0)) || (allfinished) || (inpit))
-						{
-							needveh = vinfo.mID;							
-						}
-						else { needveh = first; }
-					}
-					if (needpos > 1) // rearview
-					{ 
-						if (vinfo.mPlace == needpos - 1)
-						{
-							if (((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0)) || (allfinished) || (inpit))
-							{
-								rvveh = vinfo.mID;								
-							}
-						}
-					}
-					else { rvveh = first; }
-				}				
-				if ((lastcam == 0) && (needveh == aktveh)) { obchance = 3; }
-				else { obchance = 2; }
-				if ((pontosminbehind >= 0.05) && (pontosminbehind <= obtime) && ((rand() % 9 + 1) <= obchance)) //onboard
-				{
-					if ((rand() % 99 + 1) <= rearview)
-					{
-						needcam = rvcam;
-						needveh = rvveh;
-					}
-					else
-					{
-						needcam = obcam;
-					}
-				}
-				else {
-					needcam = 4;
-				}				
-			}
-			else { needveh = aktveh; }
-		}
-		for (long i = 0; i < info.mNumVehicles; ++i)
-		{
-			VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-			if (vinfo.mID == replayveh) replayname = vinfo.mDriverName;
-			if (vinfo.mID == needveh)
-			{
-				aktname = vinfo.mDriverName;
-				curlapT = info.mCurrentET - vinfo.mLapStartET;
-			}
-		}
-		// LMU: WantsToViewVehicle is never called by LMU → switch camera via REST API
-		if (isLMU && needveh != aktveh) {
-			aktveh      = needveh;
-			aktpos      = needpos;
-			lastcam     = needcam;
-			camvalttime = sessiontime;
-			WritetoFileDrivername();
-			SwitchCameraViaREST(needveh);
-		}
-		// FILE OUTPUTS
-		// Build time display string (shared by time.txt and status.json)
-		std::string timestr;
-		if (onreplay)
-		{
-			timestr = "REPLAY";
-		}
-		else
-		{
-			char tbuf[32] = {};
-			double remain = info.mEndET - info.mCurrentET;
-			if (info.mSession > 9) {
-				if ((info.mGamePhase > 4) && (info.mGamePhase < 8)) {
-					currentlap = completedlaps + 1;
-					if (completedlaps == 0) { completedlaps = 1; }
-					if ((remain > 0) && ((((info.mCurrentET / completedlaps) * (info.mMaxLaps - 1)) > info.mEndET) || (info.mMaxLaps == 0)))
-					{
-						snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
-						timestr = tbuf;
-					}
-					else
-					{
-						if ((currentlap == info.mMaxLaps) || ((info.mMaxLaps > 2147483640) && (remain < 0)))
-							timestr = "Last lap";
-						else {
-							snprintf(tbuf, sizeof(tbuf), "%d / %d", currentlap, info.mMaxLaps);
-							timestr = tbuf;
-						}
-					}
-				}
-				else { timestr = (info.mGamePhase == 8 ? "Race finished" : ""); }
-			}
-			else {
-				if (remain > 0) {
-					snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
-					timestr = tbuf;
-				}
-				else { timestr = "Session end"; }
-			}
-		}
-		{ std::ofstream f(timefname); if (f.is_open()) f << timestr; }
-		WritetoInfohtml(info.mSession);
-		WriteToJson(info.mSession, timestr);
-		// Debug log (enable with debug=1 in ini)
-		if (debuglog) {
-			std::ofstream fo(filespath + "\\debug.log", std::ios::app);
-			if (fo.is_open()) {
-				fo << std::fixed << std::setprecision(3)
-				   << "t=" << sessiontime
-				   << " ses=" << info.mSession
-				   << " ph=" << (int)info.mGamePhase
-				   << " sip=" << showinpit
-				   << " intdiff=" << interestsec
-				   << " obdiff=" << obtime
-				   << " wait=" << waitsec
-				   << " pmb=" << pontosminbehind
-				   << " mb=" << minbehind
-				   << " npos=" << needpos
-				   << " apos=" << aktpos
-				   << " nveh=" << needveh
-				   << " aveh=" << aktveh
-				   << " rveh=" << replayveh
-				   << " inpit=" << inpit
-				   << " sbs=" << maxsbs
-				   << " stream_len=" << strlen(info.mResultsStream)
-				   << "\n";
-			}
-		}
-		scoringrun = false;
-	}
+    // Ctrl+autokey toggle — fallback for LMU (rF2 handles it via CheckHWControl with HUD)
+    if (key_pressed(VK_CONTROL) && key_pressed(autokey)) {
+        if (!autokeypressed) { automatic = !automatic; }
+        autokeypressed = true;
+    } else {
+        autokeypressed = false;
+    }
+
+    if (automatic == 0) return;
+
+    // Note: called twice per second
+    scoringrun = true;
+    sessiontime = info.mCurrentET;
+    finished    = 0;
+    allfinished = true;
+    camvalthat  = waitsec + (rand() % 5);
+
+    if (info.mNumVehicles > 0) {
+        ScanVehicles(info);
+
+        if (info.mSession < 10) SelectCameraQualifying(info);
+        if (info.mSession > 9)  SelectCameraRace(info);
+
+        if (allfinished) {
+            camvalthat = waitsec + (rand() % 10);
+            if ((aktpos < 3) && (walkthrough == 1)) {
+                needpos          = aktpos + 1;
+                pontosminbehind  = obtime + 1; // disable onboard
+            } else {
+                needpos          = 1;
+                pontosminbehind  = obtime + 1;
+            }
+        }
+        if (needpos == 0) { // nobody found (e.g. everyone in pit)
+            camvalthat = 2;
+            needpos    = 1;
+        }
+
+        DetectIncidents(info);
+
+        if ((sessiontime - camvalttime) > camvalthat)
+            ResolveTargetVehicle(info);
+        else
+            needveh = aktveh;
+    }
+
+    // Update driver name and current lap time for the tracked vehicle
+    for (long i = 0; i < info.mNumVehicles; ++i)
+    {
+        VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        if (vinfo.mID == replayveh) replayname = vinfo.mDriverName;
+        if (vinfo.mID == needveh)
+        {
+            aktname = vinfo.mDriverName;
+            curlapT = info.mCurrentET - vinfo.mLapStartET;
+        }
+    }
+
+    // LMU: WantsToViewVehicle is never called by LMU → switch camera via REST API
+    if (isLMU && needveh != aktveh) {
+        aktveh      = needveh;
+        aktpos      = needpos;
+        lastcam     = needcam;
+        camvalttime = sessiontime;
+        WritetoFileDrivername();
+        SwitchCameraViaREST(needveh);
+    }
+
+    WriteSessionOutputs(info);
+
+    scoringrun = false;
+}
+
+// ── UpdateScoring sub-routines ────────────────────────────────────────────────
+
+void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
+{
+    minbehind       = 99999;
+    pontosminbehind = obtime + 1;
+    numveh          = info.mNumVehicles;
+    needpos = 0; needspos = 0; needdpos = 0; needsbspos = 0;
+    inpit   = false;
+    maxsbs  = 0;
+
+    for (long i = 0; i < info.mNumVehicles; ++i)
+    {
+        VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        if (vinfo.mPlace == 1)
+        {
+            first         = vinfo.mID;
+            elso          = vinfo.mDriverName;
+            completedlaps = vinfo.mTotalLaps;
+        }
+        if (vinfo.mFinishStatus == 0) { allfinished = false; }
+        if ((vinfo.mBestLapTime < bestlapT) && (vinfo.mBestLapTime > 0))
+        {
+            bestlapT = vinfo.mBestLapTime;
+            best1T   = vinfo.mBestSector1;
+            best2T   = vinfo.mBestSector2;
+        }
+    }
+}
+
+void rF2autocam::SelectCameraQualifying(const ScoringInfoV01 &info)
+{
+    for (long i = 0; i < info.mNumVehicles; ++i)
+    {
+        VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        // Sector 2 completed and on pace for overall best
+        if ((vinfo.mCurSector2 > 0) && ((vinfo.mCurSector2 + vinfo.mCurSector1) < (best1T + best2T)) && ((needdpos > vinfo.mPlace) || (needdpos == 0)))
+        {
+            if ((sessiontime - camvalttime) >= camvalthat) needdpos = vinfo.mPlace;
+            pontosminbehind = 0.01; // allow onboard switch
+        }
+        // Sector 1 completed and faster than best S1
+        if ((vinfo.mCurSector1 > 0) && (vinfo.mCurSector2 == 0) && (vinfo.mCurSector1 < best1T) && ((needspos > vinfo.mPlace) || (needspos == 0)))
+        {
+            if ((sessiontime - camvalttime) >= camvalthat) needspos = vinfo.mPlace;
+            pontosminbehind = 0.01;
+        }
+        // Any car on a flying lap
+        if ((vinfo.mCurSector1 > 0) && ((needpos > vinfo.mPlace) || (needpos == 0)))
+        {
+            if ((sessiontime - camvalttime) >= camvalthat) needpos = vinfo.mPlace;
+            pontosminbehind = 0.01;
+        }
+    }
+    // Promote to best candidate found
+    if (needspos != 0) needpos = needspos;
+    if (needdpos != 0) needpos = needdpos;
+    // Fallback: pick any car on track
+    if (needpos == 0) {
+        for (long i = 0; i < info.mNumVehicles; ++i)
+        {
+            VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+            if (((vinfo.mPitState == 0) || (vinfo.mPitState == 4)) && ((needpos > vinfo.mPlace) || (needpos == 0)))
+                needpos = vinfo.mPlace;
+        }
+    }
+}
+
+void rF2autocam::SelectCameraRace(const ScoringInfoV01 &info)
+{
+    for (long i = 0; i < info.mNumVehicles; ++i)
+    {
+        VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        if ((vinfo.mFinishStatus == 1) && (finished < vinfo.mPlace)) { finished = vinfo.mPlace; }
+        if ((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0))
+        {
+            // Weight the gap: cars outside interest range get a penalty
+            if ((vinfo.mPlace > interest) && (vinfo.mTimeBehindNext > obtime))
+                aktbehind = round((abs(vinfo.mTimeBehindNext + 0.5) / 3) * 10);
+            else
+                aktbehind = round((abs(vinfo.mTimeBehindNext) / 3) * 10);
+
+            // Count side-by-side cars
+            sbs = 0;
+            for (long j = 0; j < info.mNumVehicles; ++j)
+            {
+                VehicleScoringInfoV01 &vinfosbs = info.mVehicle[j];
+                if (abs(vinfo.mLapDist - vinfosbs.mLapDist) < sbsdist) { sbs++; }
+            }
+
+            if ((info.mGamePhase == 5) || (info.mGamePhase == 4)) // Green Flag
+            {
+                if ((aktbehind <= minbehind) && (vinfo.mTimeBehindNext != 0))
+                {
+                    if (aktbehind == minbehind)
+                    {
+                        if ((vinfo.mPlace < needpos) || (needpos == 0))
+                        {
+                            minbehind       = aktbehind;
+                            pontosminbehind = abs(vinfo.mTimeBehindNext);
+                            needpos         = vinfo.mPlace;
+                        }
+                    }
+                    else
+                    {
+                        minbehind       = aktbehind;
+                        pontosminbehind = abs(vinfo.mTimeBehindNext);
+                        needpos         = vinfo.mPlace;
+                    }
+                }
+                if ((sbs > maxsbs) && (sbs >= sbscount) && ((needsbspos == 0) || (vinfo.mPlace < needsbspos)))
+                {
+                    maxsbs    = sbs;
+                    needsbspos = vinfo.mPlace;
+                }
+            }
+            else if (info.mGamePhase == 3) // Formation lap — cycle through field
+            {
+                if ((aktpos < info.mNumVehicles) && (walkthrough == 1)) needpos = aktpos + 1;
+                else needpos = 1;
+            }
+            else // Safety car / other phases
+            {
+                camvalthat = 2;
+                needpos    = 1;
+            }
+        }
+    }
+
+    // Side-by-side overrides normal selection
+    if (maxsbs >= sbscount) {
+        needpos         = needsbspos;
+        pontosminbehind = obtime + 1; // disable onboard
+    }
+
+    // Show pit activity when the race action is calm enough
+    inpit = false;
+    if (((iequals(showinpit, "interestdiff")) && (pontosminbehind > interestsec))
+        || ((iequals(showinpit, "onboarddiff")) && (pontosminbehind > obtime))
+        || iequals(showinpit, "always"))
+    {
+        pitpos = 0;
+        for (long i = 0; i < info.mNumVehicles; ++i)
+        {
+            VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+            if (((vinfo.mPitState == 2) || (vinfo.mPitState == 4)) && (vinfo.mFinishStatus == 0) && ((pitpos == 0) || (pitpos > vinfo.mPlace))) {
+                inpit  = true;
+                pitpos = vinfo.mPlace;
+            }
+        }
+    }
+    else if (showinpitl > 0) // show top-N in pit
+    {
+        pitpos = 0;
+        for (long i = 0; i < info.mNumVehicles; ++i)
+        {
+            VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+            if ((vinfo.mPitState > 1) && (vinfo.mFinishStatus == 0) && ((pitpos == 0) || (pitpos > vinfo.mPlace)) && (vinfo.mPlace <= showinpitl)) {
+                inpit  = true;
+                pitpos = vinfo.mPlace;
+            }
+        }
+    }
+    if (inpit && (pitpos != 0)) {
+        needpos         = pitpos;
+        pontosminbehind = obtime + 1; // disable onboard
+    }
+
+    // Random camera switch when nobody is fighting (20% chance)
+    if (pontosminbehind > interestsec) {
+        if (((sessiontime - camvalttime) >= camvalthat) && (!inpit))
+            if ((rand() % 5) == 1) needpos = rand() % info.mNumVehicles + 1;
+    }
+
+    // Focus on the last car not yet finished on their final lap
+    for (long i = 0; i < info.mNumVehicles; ++i)
+    {
+        VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        if (vinfo.mFinishStatus == 0)
+        {
+            if ((((info.mMaxLaps - 1) == (vinfo.mTotalLaps)) || (((info.mEndET - sessiontime) < 20) && (info.mEndET > 0)))
+                && (vinfo.mSector == 0) && (vinfo.mPlace == (finished + 1)))
+            {
+                needpos         = vinfo.mPlace;
+                pontosminbehind = obtime + 1; // disable onboard
+                camvalthat      = 2;
+            }
+            allfinished = false;
+        }
+    }
+}
+
+void rF2autocam::DetectIncidents(const ScoringInfoV01 &info)
+{
+    // Diff-based: process only newly appended text in mResultsStream.
+    // On the first call after session start, establish a baseline to avoid
+    // replaying stale incidents from the previous session.
+    char* e = nullptr;
+    sseged = "";
+    {
+        const std::string currentStream(info.mResultsStream);
+        if (!prevResultsReady) {
+            prevResultsStream = currentStream; // baseline only
+            prevResultsReady  = true;
+        } else if (currentStream.length() > prevResultsStream.length()) {
+            sseged            = currentStream.substr(prevResultsStream.length());
+            prevResultsStream = currentStream;
+        } else if (currentStream.length() < prevResultsStream.length()) {
+            prevResultsStream = currentStream; // unexpected reset
+        }
+    }
+
+    std::size_t ifound  = sseged.find("Incident");
+    std::size_t imfound = sseged.find("Immovable");
+    std::size_t vfound  = sseged.find("vehicle");
+    if ((ifound != std::string::npos) && ((imfound != std::string::npos) || (vfound != std::string::npos)))
+    {
+        sincsize[0] = '\0';
+        std::size_t sbfound  = sseged.find("(");
+        std::size_t sefound  = sseged.find(")");
+        std::size_t sibfound = sseged.find("contact (");
+        std::size_t siefound = sseged.find(") with");
+        sseged.substr(sibfound + 9, siefound - sibfound - 9).copy(sincsize, 10);
+        if ((strtod(sincsize, &e) > pincsize) && (strtod(sincsize, &e) > lowinc))
+        {
+            preplayveh = strtol(sseged.substr((sbfound + 1), sefound - (sbfound + 1)).c_str(), &e, 0);
+            pincsize   = strtod(sincsize, &e);
+            pinctime   = sessiontime;
+        }
+    }
+
+    if ((!needreplay) && (!onreplay) && (sessiontime < (pinctime + 180)))
+    {
+        if ((pincsize >= highinc) || ((pincsize >= lowinc) && (info.mSession < 10)))
+        {
+            incsize    = pincsize;
+            replayveh  = preplayveh;
+            inctime    = pinctime;
+            needreplay = true;
+            pincsize   = 0;
+        }
+        if ((pincsize >= lowinc) && (info.mSession < 10) && ((pontosminbehind <= obtime) && (pontosminbehind >= 0.04)))
+        {
+            incsize    = pincsize;
+            replayveh  = preplayveh;
+            inctime    = pinctime;
+            needreplay = true;
+            pincsize   = 0;
+        }
+    }
+}
+
+void rF2autocam::ResolveTargetVehicle(const ScoringInfoV01 &info)
+{
+    for (long i = 0; i < info.mNumVehicles; ++i)
+    {
+        VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        if (vinfo.mPlace == needpos)
+        {
+            if (((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0)) || allfinished || inpit)
+                needveh = vinfo.mID;
+            else
+                needveh = first;
+        }
+        if (needpos > 1)
+        {
+            if (vinfo.mPlace == needpos - 1)
+                if (((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0)) || allfinished || inpit)
+                    rvveh = vinfo.mID;
+        }
+        else { rvveh = first; }
+    }
+
+    if ((lastcam == 0) && (needveh == aktveh)) obchance = 3;
+    else                                        obchance = 2;
+
+    if ((pontosminbehind >= 0.05) && (pontosminbehind <= obtime) && ((rand() % 9 + 1) <= obchance))
+    {
+        if ((rand() % 99 + 1) <= rearview) {
+            needcam = rvcam;
+            needveh = rvveh;
+        } else {
+            needcam = obcam;
+        }
+    }
+    else {
+        needcam = kCamTrackside;
+    }
+}
+
+void rF2autocam::WriteSessionOutputs(const ScoringInfoV01 &info)
+{
+    // Build time display string (shared by time.txt and status.json)
+    std::string timestr;
+    if (onreplay)
+    {
+        timestr = "REPLAY";
+    }
+    else
+    {
+        char   tbuf[32] = {};
+        double remain   = info.mEndET - info.mCurrentET;
+        if (info.mSession > 9) {
+            if ((info.mGamePhase > 4) && (info.mGamePhase < 8)) {
+                currentlap = completedlaps + 1;
+                if (completedlaps == 0) { completedlaps = 1; }
+                if ((remain > 0) && ((((info.mCurrentET / completedlaps) * (info.mMaxLaps - 1)) > info.mEndET) || (info.mMaxLaps == 0)))
+                {
+                    snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
+                    timestr = tbuf;
+                }
+                else
+                {
+                    if ((currentlap == info.mMaxLaps) || ((info.mMaxLaps > kNoLapLimit) && (remain < 0)))
+                        timestr = "Last lap";
+                    else {
+                        snprintf(tbuf, sizeof(tbuf), "%d / %d", currentlap, info.mMaxLaps);
+                        timestr = tbuf;
+                    }
+                }
+            }
+            else { timestr = (info.mGamePhase == 8 ? "Race finished" : ""); }
+        }
+        else {
+            if (remain > 0) {
+                snprintf(tbuf, sizeof(tbuf), "%02.0f:%02.0f:%02.0f", floor(remain / 3600.0), floor(fmod(remain, 3600.0) / 60.0), fmod(remain, 60.0));
+                timestr = tbuf;
+            }
+            else { timestr = "Session end"; }
+        }
+    }
+
+    { std::ofstream f(timefname); if (f.is_open()) f << timestr; }
+    WritetoInfohtml(info.mSession);
+    WriteToJson(info.mSession, timestr);
+
+    if (debuglog) {
+        std::ofstream fo(filespath + "\\debug.log", std::ios::app);
+        if (fo.is_open()) {
+            fo << std::fixed << std::setprecision(3)
+               << "t="          << sessiontime
+               << " ses="       << info.mSession
+               << " ph="        << (int)info.mGamePhase
+               << " sip="       << showinpit
+               << " intdiff="   << interestsec
+               << " obdiff="    << obtime
+               << " wait="      << waitsec
+               << " pmb="       << pontosminbehind
+               << " mb="        << minbehind
+               << " npos="      << needpos
+               << " apos="      << aktpos
+               << " nveh="      << needveh
+               << " aveh="      << aktveh
+               << " rveh="      << replayveh
+               << " inpit="     << inpit
+               << " sbs="       << maxsbs
+               << " stream_len=" << strlen(info.mResultsStream)
+               << "\n";
+        }
+    }
 }
 
 bool rF2autocam::RequestCommentary( CommentaryRequestInfoV01 &info )
