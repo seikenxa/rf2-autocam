@@ -106,8 +106,12 @@ Updated every ~0.5 seconds. Example:
   "on_replay":    false,
   "autocam":      true,
   "session_type": "race",
+  "game_phase":   "green",
   "time_display": "01:23:45",
-  "gap_to_next":  0.312
+  "gap_to_next":  0.312,
+  "in_battle":    true,
+  "sbs_active":   false,
+  "leader":       "Hamilton"
 }
 ```
 
@@ -119,8 +123,12 @@ Updated every ~0.5 seconds. Example:
 | `on_replay` | boolean | `true` while an instant replay is playing |
 | `autocam` | boolean | `true` = auto camera is active; `false` = manual / autocam toggled off |
 | `session_type` | string | `practice`, `qualifying`, or `race` |
+| `game_phase` | string | Race phase: `garage`, `warmup`, `formation`, `green`, `yellow` (safety car/FCY), `stopped` (red flag), `finished` |
 | `time_display` | string | Remaining time (`HH:MM:SS`), lap count (`n / N`), `"Last lap"`, `"Race finished"`, `"REPLAY"`, or `""` |
-| `gap_to_next` | number | Gap in seconds to the car ahead of the current subject. `0.0` during replay |
+| `gap_to_next` | number | Tightest gap on track (seconds between any two cars). Reflects the closest active battle, not necessarily the car currently on camera |
+| `in_battle` | boolean | `true` when there is a close battle on track (gap within `onboarddiff` threshold) |
+| `sbs_active` | boolean | `true` when two or more cars are running side-by-side (within `sbsdist` meters at the same track position) |
+| `leader` | string | Driver name of the current race/session leader (P1) |
 
 ## Building from Source
 

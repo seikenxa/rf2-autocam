@@ -224,6 +224,22 @@ void rF2autocam::WriteToJson(long session, const std::string& timestr)
 		return out;
 	};
 
+	// Game phase → string
+	const char* phasename = "green";
+	switch (gamePhase) {
+		case 0:           phasename = "garage";    break;
+		case 1: case 2:   phasename = "warmup";    break;
+		case 3:           phasename = "formation"; break;
+		case 4: case 5:   phasename = "green";     break;
+		case 6:           phasename = "yellow";    break;
+		case 7:           phasename = "stopped";   break;
+		case 8:           phasename = "finished";  break;
+		default:          phasename = "unknown";   break;
+	}
+
+	const bool inBattle   = (pontosminbehind >= 0.05) && (pontosminbehind <= obtime);
+	const bool sbsActive  = (maxsbs >= sbscount);
+
 	f << "{\n";
 	if (onreplay) {
 		f << "  \"driver\": \""   << jsonEscape(replayname) << "\",\n";
@@ -233,12 +249,16 @@ void rF2autocam::WriteToJson(long session, const std::string& timestr)
 		f << "  \"position\": "   << aktpos << ",\n";
 	}
 	f << "  \"camera\": \""       << camname  << "\",\n";
-	f << "  \"on_replay\": "      << (onreplay ? "true" : "false") << ",\n";
+	f << "  \"on_replay\": "      << (onreplay  ? "true" : "false") << ",\n";
 	f << "  \"autocam\": "        << (automatic ? "true" : "false") << ",\n";
 	f << "  \"session_type\": \"" << sessname << "\",\n";
+	f << "  \"game_phase\": \""   << phasename << "\",\n";
 	f << "  \"time_display\": \"" << jsonEscape(timestr) << "\",\n";
 	f << "  \"gap_to_next\": "
-	  << std::fixed << std::setprecision(3) << pontosminbehind << "\n";
+	  << std::fixed << std::setprecision(3) << pontosminbehind << ",\n";
+	f << "  \"in_battle\": "      << (inBattle  ? "true" : "false") << ",\n";
+	f << "  \"sbs_active\": "     << (sbsActive ? "true" : "false") << ",\n";
+	f << "  \"leader\": \""       << jsonEscape(elso) << "\"\n";
 	f << "}\n";
 }
 
@@ -940,6 +960,8 @@ void rF2autocam::ResolveTargetVehicle(const ScoringInfoV01 &info)
 
 void rF2autocam::WriteSessionOutputs(const ScoringInfoV01 &info)
 {
+    gamePhase = static_cast<long>(info.mGamePhase);
+
     // Build time display string (shared by time.txt and status.json)
     std::string timestr;
     if (onreplay)
