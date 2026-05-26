@@ -598,6 +598,16 @@ bool rF2autocam::ForceFeedback( double &forceValue )
 void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 {
 	char* e = nullptr;
+	// Ctrl+autokey toggle — fallback for games (e.g. LMU) that do not call CheckHWControl.
+	// CheckHWControl handles the same logic for rF2 (with HUD message support).
+	if (key_pressed(VK_CONTROL) && key_pressed(autokey)) {
+		if (!autokeypressed) {
+			automatic = !automatic;
+		}
+		autokeypressed = true;
+	} else {
+		autokeypressed = false;
+	}
 	// Note: function is called twice per second now (instead of once per second in previous versions)
 	if (automatic != 0) // auto mode on
 	{		

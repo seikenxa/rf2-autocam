@@ -30,7 +30,7 @@ Recommended: set instant replay length to 180 seconds in rF2 settings.
 
 ### Le Mans Ultimate
 
-1. Copy `rf2autocam_x64.dll` to `<LeMansUltimate>\Plugins\` — create the folder if it does not exist
+1. Copy `rf2autocam_x64.dll` to `<LeMansUltimate>\Bin64\Plugins\`
 2. Add the following entry to `<LeMansUltimate>\UserData\player\CustomPluginVariables.JSON`:
    ```json
    "rf2autocam_x64.dll": {
