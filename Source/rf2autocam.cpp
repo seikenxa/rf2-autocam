@@ -703,8 +703,11 @@ void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
     for (long i = 0; i < info.mNumVehicles; ++i)
     {
         VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-        // Detect local player with an active car (not finished/DNF/DQ)
-        if (vinfo.mIsPlayer && vinfo.mFinishStatus == 0)
+        // Detect local player actively on track (not finished/DNF and not in pit area).
+        // mPitState == 0 means on track; any other value means pit lane / pit box / garage.
+        // This allows autocam to work while the player is waiting in the pits or watching
+        // before going out, while still blocking camera switches during active laps.
+        if (vinfo.mIsPlayer && vinfo.mFinishStatus == 0 && vinfo.mPitState == 0)
             playerDriving = true;
         if (vinfo.mPlace == 1)
         {
