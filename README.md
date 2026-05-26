@@ -130,6 +130,69 @@ Updated every ~0.5 seconds. Example:
 | `sbs_active` | boolean | `true` when two or more cars are running side-by-side (within `sbsdist` meters at the same track position) |
 | `leader` | string | Driver name of the current race/session leader (P1) |
 
+## OBS Lua Script
+
+`obs-script/autocam_obs.lua` is an OBS Lua script that reads `status.json`
+and fires configurable actions on race events — no additional software required.
+
+### Setup
+
+1. In OBS: **Tools → Scripts → +** → select `autocam_obs.lua`
+2. In the script settings, set **status.json path**:
+   - Same-PC: `C:\...\rF2stream\status.json`
+   - Two-PC (network share): `\\game-pc\rF2stream\status.json`
+3. Configure actions for each trigger (all fields are optional — leave blank to skip)
+
+### Triggers and actions
+
+Each trigger exposes five settings:
+
+| Setting | Description |
+|---------|-------------|
+| **Switch scene** | Dropdown — OBS scene to activate (leave blank for no switch) |
+| **Show sources** | Comma-separated source names to make visible |
+| **Hide sources** | Comma-separated source names to hide |
+| **Trigger media source** | Media Source name to restart/play from the beginning |
+| **Auto-restore after (sec)** | Seconds until show↔hide is reversed (0 = no auto-restore) |
+
+Available triggers:
+
+| Trigger | Fires when… |
+|---------|------------|
+| **Replay started** | `on_replay` becomes `true` |
+| **Replay ended** | `on_replay` becomes `false` |
+| **Battle started** | `in_battle` becomes `true` |
+| **Battle ended** | `in_battle` becomes `false` |
+| **Side-by-side started** | `sbs_active` becomes `true` |
+| **Side-by-side ended** | `sbs_active` becomes `false` |
+| **Leader changed** | `leader` field changes to a different driver |
+| **Formation lap** | `game_phase` becomes `"formation"` |
+| **Green flag** | `game_phase` becomes `"green"` |
+| **Safety car / FCY** | `game_phase` becomes `"yellow"` |
+| **Red flag / stopped** | `game_phase` becomes `"stopped"` |
+| **Race finished** | `game_phase` becomes `"finished"` |
+
+### Example: replay scene switch with auto-return
+
+**Replay started**
+- Switch scene: `Replay`
+- Show sources: `Replay Overlay`
+
+**Replay ended**
+- Switch scene: `Live`
+- Hide sources: `Replay Overlay`
+
+### Example: leader-change banner (auto-hide after 5 seconds)
+
+**Leader changed**
+- Show sources: `Leader Change Banner`
+- Auto-restore after: `5`
+
+### Two-PC setup
+
+Share the `rF2stream` folder on the game PC (standard Windows file sharing),
+then point the script at the UNC path from the OBS PC. No extra software needed.
+
 ## Building from Source
 
 **Requirements:**
