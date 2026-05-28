@@ -107,7 +107,9 @@ void rF2autocam::ResetSessionState()
     needdpos      = 0;
     needveh       = 0;
     aktveh        = -1;
+    playerSlotId  = -1;
     aktpos        = 0;
+    timerFired    = false;
     needcam       = kCamTrackside;
     lastcam       = 0;
     refreshcount  = 0;
@@ -625,16 +627,6 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
     if (info.mNumVehicles > 0) {
         ScanVehicles(info);
 
-        // Safety: never switch another driver's camera while the local player
-        // is actively driving (mFinishStatus==0). In LMU this is critical because
-        // SwitchCameraViaREST() would forcibly move the camera mid-race.
-        // Output files are still written so OBS stays updated.
-        if (playerDriving) {
-            WriteSessionOutputs(info);
-            scoringrun = false;
-            return;
-        }
-
         if (info.mSession < 10) SelectCameraQualifying(info);
         if (info.mSession > 9)  SelectCameraRace(info);
 
@@ -655,7 +647,8 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 
         DetectIncidents(info);
 
-        if ((sessiontime - camvalttime) > camvalthat)
+        timerFired = ((sessiontime - camvalttime) > camvalthat);
+        if (timerFired)
             ResolveTargetVehicle(info);
         else
             needveh = aktveh;
@@ -673,8 +666,9 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
         }
     }
 
-    // LMU: WantsToViewVehicle is never called by LMU → switch camera via REST API
-    if (isLMU && needveh != aktveh) {
+    // LMU: WantsToViewVehicle is never called by LMU → switch camera via REST API.
+    // Skip when player is driving their own car (avoid disrupting cockpit view).
+    if (isLMU && !playerDriving && needveh != aktveh) {
         aktveh      = needveh;
         aktpos      = needpos;
         lastcam     = needcam;
@@ -707,8 +701,11 @@ void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
         // mPitState == 0 means on track; any other value means pit lane / pit box / garage.
         // This allows autocam to work while the player is waiting in the pits or watching
         // before going out, while still blocking camera switches during active laps.
-        if (vinfo.mIsPlayer && vinfo.mFinishStatus == 0 && vinfo.mPitState == 0)
-            playerDriving = true;
+        if (vinfo.mIsPlayer) {
+            playerSlotId = vinfo.mID;
+            if (vinfo.mFinishStatus == 0 && vinfo.mPitState == 0)
+                playerDriving = true;
+        }
         if (vinfo.mPlace == 1)
         {
             first         = vinfo.mID;
@@ -1120,6 +1117,14 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 		}
 		if (!camControl.mReplayActive)
 		{
+			// Timer fired: force re-commit so autocam overrides any manual camera change.
+			if (timerFired) {
+				timerFired = false;
+				aktveh = -1;
+			}
+			// Never commit to player's own car while they are actively on track.
+			if (playerDriving && playerSlotId != -1 && needveh == playerSlotId)
+				return{ 0 };
 			if (needveh != aktveh)
 			{
 				camControl.mID = needveh;

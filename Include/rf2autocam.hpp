@@ -132,7 +132,9 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   long           needcam      = kCamTrackside;
   long           lastcam      = 0;
   long           aktveh       = -1;
+  long           playerSlotId = -1;  // mID of local player's car; -1 = no player car
   long           aktpos       = 0;
+  bool           timerFired   = false; // set when waitsec timer expires; forces re-commit
   long           sbs          = 0;
   long           needsbspos   = 0;
   long           maxsbs       = 0;
