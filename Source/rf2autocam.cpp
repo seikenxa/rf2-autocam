@@ -82,7 +82,7 @@ void rF2autocam::SwitchCameraViaREST(int slotId)
 // plugin information
 
 extern "C" __declspec( dllexport )
-const char * __cdecl GetPluginName()                   { return( "rF2 autocam - 2026.05.24." ); }
+const char * __cdecl GetPluginName()                   { return( "rF2 autocam - 2026.05.29." ); }
 
 extern "C" __declspec( dllexport )
 PluginObjectType __cdecl GetPluginType()               { return( PO_INTERNALS ); }
@@ -449,9 +449,9 @@ void rF2autocam::Startup( long version )
     message.mDestination = 0;
     message.mTranslate = 0;
     if (automatic) {
-        strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: on");
+        strcpy(message.mText, "rF2autocam 2026.05.29. Auto camera: on");
     } else {
-        strcpy(message.mText, "rF2autocam 2026.05.24. Auto camera: off");
+        strcpy(message.mText, "rF2autocam 2026.05.29. Auto camera: off");
     }
 
     // out files defaults (must be set before ResetSessionState writes them)
@@ -1159,7 +1159,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 
 bool rF2autocam::WantsToDisplayMessage(MessageInfoV01 &msgInfo)
 {
-	if (message.mText == "")
+	if (message.mText[0] == '\0')
 	{
 		return (false);
 	}
