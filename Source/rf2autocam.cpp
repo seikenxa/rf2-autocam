@@ -727,6 +727,7 @@ void rF2autocam::SelectCameraQualifying(const ScoringInfoV01 &info)
     for (long i = 0; i < info.mNumVehicles; ++i)
     {
         VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
+        if (playerDriving && vinfo.mIsPlayer) continue; // skip player while on track
         // Sector 2 completed and on pace for overall best
         if ((vinfo.mCurSector2 > 0) && ((vinfo.mCurSector2 + vinfo.mCurSector1) < (best1T + best2T)) && ((needdpos > vinfo.mPlace) || (needdpos == 0)))
         {
@@ -766,6 +767,7 @@ void rF2autocam::SelectCameraRace(const ScoringInfoV01 &info)
     {
         VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
         if ((vinfo.mFinishStatus == 1) && (finished < vinfo.mPlace)) { finished = vinfo.mPlace; }
+        if (playerDriving && vinfo.mIsPlayer) continue; // skip player while on track
         if ((vinfo.mPitState == 0) && (vinfo.mFinishStatus == 0))
         {
             // Weight the gap: cars outside interest range get a penalty
@@ -1050,6 +1052,9 @@ void rF2autocam::WriteSessionOutputs(const ScoringInfoV01 &info)
                << " rveh="      << replayveh
                << " inpit="     << inpit
                << " sbs="       << maxsbs
+               << " pdrv="      << (playerDriving ? 1 : 0)
+               << " psid="      << playerSlotId
+               << " tfired="    << (timerFired ? 1 : 0)
                << " stream_len=" << strlen(info.mResultsStream)
                << "\n";
         }
@@ -1165,6 +1170,7 @@ bool rF2autocam::WantsToDisplayMessage(MessageInfoV01 &msgInfo)
 	}
 	else {
 		msgInfo = message;
+		msgInfo.mDestination = isLMU ? 1 : 0;  // LMU: chat (0=message centre not supported)
 		strcpy(message.mText, "");
 		return (true);
 	}
