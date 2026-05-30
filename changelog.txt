@@ -1,3 +1,18 @@
+---v1.4.0 (2026-05-30)------------------------------------------------------------------------------------------------------
+- FIX: Auto camera froze after the player took control of a car (DRIVE). rF2 latches
+  mReplayActive=true and never clears it, which blocked all camera switching; the camera
+  commit path is now gated on our own incident replay (onreplay) instead of mReplayActive.
+- FIX: Camera could freeze on session change (e.g. long practice -> qualifying) or on a race
+  restart — a stale switch timer carried over from the previous session. UpdateScoring now
+  self-heals when the session changes or the session clock resets.
+- CHANGE: Practice camera now rotates through the cars on track in random order (no longer
+  locked to P1), preferring cars not featured yet in the current cycle.
+- CHANGE: Qualifying camera uses the same rotation but prioritises the action — a lead change
+  (a new fastest lap takes P1) cuts immediately, followed by cars on pace for the overall best
+  or beating the best sector 1.
+- (Race camera selection unchanged: closest battle.)
+- DEV: debug log gains wtvN/rep/wpath fields (debug=1 only).
+
 ---v1.1.1 (2026-05-26)------------------------------------------------------------------------------------------------------
 - FIX: Ctrl+key toggle now works in Le Mans Ultimate (CheckHWControl is not called by LMU;
   added fallback detection in UpdateScoring)
