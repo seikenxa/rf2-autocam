@@ -120,6 +120,8 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   std::string    sseged;
   MessageInfoV01 message      = {};
   long           refreshcount = 0;
+  int            dbgReplayActive = -1;  // last camControl.mReplayActive seen (-1=never called)
+  int            dbgWtvPath      = -1;  // last WantsToViewVehicle path (see codes in .cpp)
   long           camvalthat   = 0;
   bool           scoringrun   = false;
   long           needpos      = 0;
@@ -135,6 +137,10 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   long           playerSlotId = -1;  // mID of local player's car; -1 = no player car
   long           aktpos       = 0;
   bool           timerFired   = false; // set when waitsec timer expires; forces re-commit
+  long           shownCars[64] = {};   // mIDs already featured in the current practice/qual cycle
+  int            shownCount   = 0;     // entries used in shownCars
+  long           lastLeader   = -1;    // P1 mID we last reacted to (qualifying lead-change focus)
+  long           lastSession  = -1;    // detect session change in UpdateScoring (not reset on session reset)
   long           sbs          = 0;
   long           needsbspos   = 0;
   long           maxsbs       = 0;
@@ -201,7 +207,9 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
 
   // UpdateScoring sub-routines
   void ScanVehicles(const ScoringInfoV01& info);           // prelist pass: leader, best lap, allfinished
-  void SelectCameraQualifying(const ScoringInfoV01& info); // practice / qualifying camera logic
+  long PickRandomUnshownCar(const ScoringInfoV01& info);    // random on-track car not yet featured this cycle
+  void SelectCameraPractice(const ScoringInfoV01& info);   // practice: rotate through on-track cars
+  void SelectCameraQualifying(const ScoringInfoV01& info); // qualifying: rotate + prioritise improving cars
   void SelectCameraRace(const ScoringInfoV01& info);       // race camera logic (SBS, pit, last lap)
   void DetectIncidents(const ScoringInfoV01& info);        // parse mResultsStream for incidents
   void ResolveTargetVehicle(const ScoringInfoV01& info);   // needpos → needveh + camera type

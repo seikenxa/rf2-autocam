@@ -109,6 +109,8 @@ void rF2autocam::ResetSessionState()
     aktveh        = -1;
     playerSlotId  = -1;
     aktpos        = 0;
+    shownCount    = 0;
+    lastLeader    = -1;
     timerFired    = false;
     needcam       = kCamTrackside;
     lastcam       = 0;
@@ -620,6 +622,20 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
     // Note: called twice per second
     scoringrun = true;
     sessiontime = info.mCurrentET;
+
+    // Self-heal on session change / restart: rF2's StartSession callback is not always
+    // delivered, so detect it here. Without this, stale camvalttime from a long previous
+    // session stays "in the future" relative to the new session clock and the switch timer
+    // never fires → camera freezes. (Observed: 50-min practice → qualifying.)
+    //   - mSession change  → practice↔qual↔race transitions
+    //   - camvalttime > sessiontime → clock jumped backwards (race restart, same mSession);
+    //     camvalttime is otherwise always <= sessiontime, so this never false-fires.
+    if (info.mSession != lastSession || camvalttime > sessiontime) {
+        ResetSessionState();
+        lastSession = info.mSession;
+        sessiontime = info.mCurrentET; // ResetSessionState zeroed timing; keep current clock
+    }
+
     finished    = 0;
     allfinished = true;
     camvalthat  = waitsec + (rand() % 5);
@@ -627,8 +643,9 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
     if (info.mNumVehicles > 0) {
         ScanVehicles(info);
 
-        if (info.mSession < 10) SelectCameraQualifying(info);
-        if (info.mSession > 9)  SelectCameraRace(info);
+        if (info.mSession <= 4)      SelectCameraPractice(info);   // testday + practice 1-4
+        else if (info.mSession < 10) SelectCameraQualifying(info); // qual 5-8 + warmup 9
+        else                         SelectCameraRace(info);       // race 10-13
 
         if (allfinished) {
             camvalthat = waitsec + (rand() % 10);
@@ -722,6 +739,58 @@ void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
     }
 }
 
+// Pick a random on-track car that hasn't been featured yet this cycle (variety over
+// strict order). Records the chosen car's mID; once everyone has had screen time the
+// cycle resets. Returns the car's finishing position (mPlace), or 0 if nobody else is
+// on track. Shared rotation base for practice and qualifying.
+long rF2autocam::PickRandomUnshownCar(const ScoringInfoV01 &info)
+{
+    long candPos[64];
+    long candId[64];
+    int  n = 0;
+    for (int pass = 0; pass < 2 && n == 0; ++pass)
+    {
+        if (pass == 1) shownCount = 0; // pass 0 found only already-shown cars → start a new cycle
+        for (long i = 0; i < info.mNumVehicles && n < 64; ++i)
+        {
+            VehicleScoringInfoV01 &v = info.mVehicle[i];
+            if (playerDriving && v.mIsPlayer) continue;             // skip player while on track
+            if (v.mPitState != 0 || v.mFinishStatus != 0) continue; // on track only
+            if (v.mID == aktveh) continue;                          // don't immediately re-pick current
+            if (pass == 0)
+            {
+                bool shown = false;
+                for (int k = 0; k < shownCount; ++k) if (shownCars[k] == v.mID) { shown = true; break; }
+                if (shown) continue;
+            }
+            candPos[n] = v.mPlace;
+            candId[n]  = v.mID;
+            ++n;
+        }
+    }
+    if (n == 0) return 0; // nobody else on track → caller holds current
+    int idx = rand() % n;
+    if (shownCount < 64) shownCars[shownCount++] = candId[idx];
+    return candPos[idx];
+}
+
+// Practice: rotate through the cars circulating on track, one per dwell interval,
+// random order with not-yet-shown cars preferred (no leader lock).
+void rF2autocam::SelectCameraPractice(const ScoringInfoV01 &info)
+{
+    if ((sessiontime - camvalttime) >= camvalthat)
+    {
+        long p = PickRandomUnshownCar(info);
+        if (p != 0) needpos = p;
+    }
+    else
+    {
+        needpos = aktpos; // hold current until the dwell elapses
+    }
+}
+
+// Qualifying: same random rotation base, with priority overrides.
+// Priority: lead change (new P1) > on pace for overall best > beating best S1 > rotation.
 void rF2autocam::SelectCameraQualifying(const ScoringInfoV01 &info)
 {
     for (long i = 0; i < info.mNumVehicles; ++i)
@@ -740,25 +809,26 @@ void rF2autocam::SelectCameraQualifying(const ScoringInfoV01 &info)
             if ((sessiontime - camvalttime) >= camvalthat) needspos = vinfo.mPlace;
             pontosminbehind = 0.01;
         }
-        // Any car on a flying lap
-        if ((vinfo.mCurSector1 > 0) && ((needpos > vinfo.mPlace) || (needpos == 0)))
-        {
-            if ((sessiontime - camvalttime) >= camvalthat) needpos = vinfo.mPlace;
-            pontosminbehind = 0.01;
-        }
     }
-    // Promote to best candidate found
-    if (needspos != 0) needpos = needspos;
-    if (needdpos != 0) needpos = needdpos;
-    // Fallback: pick any car on track
-    if (needpos == 0) {
-        for (long i = 0; i < info.mNumVehicles; ++i)
-        {
-            VehicleScoringInfoV01 &vinfo = info.mVehicle[i];
-            if (((vinfo.mPitState == 0) || (vinfo.mPitState == 4)) && ((needpos > vinfo.mPlace) || (needpos == 0)))
-                needpos = vinfo.mPlace;
-        }
+
+    // Detect a lead change: a different car now holds P1 (set a new overall best lap).
+    bool leadChanged = false;
+    if (lastLeader == -1)               lastLeader = first;            // prime at session start
+    else if (first != lastLeader && first != 0) { leadChanged = true; lastLeader = first; }
+
+    if (leadChanged)
+    {
+        needpos     = 1;                              // focus the new leader…
+        camvalttime = sessiontime - camvalthat - 1.0; // …and cut to it immediately
     }
+    else if (needdpos != 0)  needpos = needdpos;      // car on pace for overall best
+    else if (needspos != 0)  needpos = needspos;      // car beating best S1
+    else if ((sessiontime - camvalttime) >= camvalthat)
+    {
+        long p = PickRandomUnshownCar(info);          // nobody improving → rotate
+        if (p != 0) needpos = p;
+    }
+    else needpos = aktpos;                            // hold current until the dwell elapses
 }
 
 void rF2autocam::SelectCameraRace(const ScoringInfoV01 &info)
@@ -1055,8 +1125,12 @@ void rF2autocam::WriteSessionOutputs(const ScoringInfoV01 &info)
                << " pdrv="      << (playerDriving ? 1 : 0)
                << " psid="      << playerSlotId
                << " tfired="    << (timerFired ? 1 : 0)
+               << " wtvN="      << refreshcount
+               << " rep="       << dbgReplayActive
+               << " wpath="     << dbgWtvPath
                << " stream_len=" << strlen(info.mResultsStream)
                << "\n";
+        refreshcount = 0;
         }
     }
 }
@@ -1089,9 +1163,19 @@ bool rF2autocam::RequestCommentary( CommentaryRequestInfoV01 &info )
 
 unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 {
+	++refreshcount; // how many times rF2 calls this per UpdateScoring interval
+	dbgReplayActive = camControl.mReplayActive ? 1 : 0;
+	// dbgWtvPath codes: 0=gate failed (scoringrun/!automatic), 1=replay branch handled,
+	//   2=committed (return 1), 3=player-guard return 0, 4=replay-active no-op (commit skipped),
+	//   5=fell through (needveh==aktveh && needcam==lastcam)
+	dbgWtvPath = 0;
 	if ((!scoringrun) && (automatic != 0)) {
-		if (camControl.mReplayActive)
+		// Gate on our own incident replay (onreplay), NOT rF2's mReplayActive.
+		// rF2 latches mReplayActive=true after the player drives and never clears it,
+		// which previously froze the normal commit block below. (Confirmed via rep/wpath diag.)
+		if (onreplay)
 		{
+			dbgWtvPath = 4; // our incident replay active: normal commit block below is skipped
 			if (sessiontime > replaystarted + replayduration)
 			{
 				stopreplay = true;
@@ -1120,7 +1204,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 				return{ 2 };
 			}						
 		}
-		if (!camControl.mReplayActive)
+		if (!onreplay)
 		{
 			// Timer fired: force re-commit so autocam overrides any manual camera change.
 			if (timerFired) {
@@ -1129,9 +1213,10 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 			}
 			// Never commit to player's own car while they are actively on track.
 			if (playerDriving && playerSlotId != -1 && needveh == playerSlotId)
-				return{ 0 };
+				{ dbgWtvPath = 3; return{ 0 }; }
 			if (needveh != aktveh)
 			{
+				dbgWtvPath = 2;
 				camControl.mID = needveh;
 				if (iequals(camtest, "ob")) { needcam = obcam; }
 				else if (iequals(camtest, "rv")) { needcam = rvcam; }
@@ -1145,6 +1230,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 			}
 			if (needcam != lastcam)
 			{
+				dbgWtvPath = 2;
 				camControl.mID = needveh;
 				if (iequals(camtest, "ob")) { needcam = obcam; }
 				else if (iequals(camtest, "rv")) { needcam = rvcam; }
@@ -1156,6 +1242,7 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 				WritetoFileDrivername();
 				return{ 1 };
 			}
+			dbgWtvPath = 5; // non-replay, already on target (needveh==aktveh, needcam==lastcam)
 		}
 	}
 	return{ 0 };
