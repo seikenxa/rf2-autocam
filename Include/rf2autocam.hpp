@@ -185,6 +185,20 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   std::string prevResultsStream;              // last seen mResultsStream content (diff tracking)
   bool        prevResultsReady = false;       // false until first UpdateScoring after session start
 
+  // Incident signal (status.json "incident" + OBS incident_start/end).
+  // Emitted on every detected incident, independent of livecut / replay mode.
+  bool   incidentActive = false;  // true during the incident-signal window
+  double incidentSince  = 0.0;    // sessiontime the signal started
+
+  // Live Cut (manual incident replay) — Tony feedback 2026-06.
+  long   livecut          = 0;    // 0=off (current behavior), 1=live-focus + manual R replay
+  long   incidenthold     = 7;    // incident-signal / live-focus hold [s]
+  int    replaykey        = 0x52; // VK polled for InstantReplay (auto-detected; default R)
+  bool   replaykeypressed = false;
+  bool   livecutFocus      = false; // livecut: holding live focus on the incident car
+  double livecutFocusStart = 0.0;   // sessiontime the live focus began
+  int    DetectReplayKeyVK();     // read sim's Instant Replay key binding → Win32 VK
+
   // File output
   std::string driverfname;
   std::string timefname;
@@ -200,6 +214,7 @@ class rF2autocam : public InternalsPluginV07  // REMINDER: exported function Get
   bool environmentAlreadySet = false;
   long gamePhase     = 0;     // mGamePhase snapshot for WriteToJson
   bool playerDriving = false; // true when local player has an active car on track
+  signed char dbgPlayerCtl = -9; // mControl of the player-owned car (diagnostic, debug log)
 
   virtual unsigned char WantsToViewVehicle(CameraControlInfoV01 &camControl);
   virtual bool WantsToDisplayMessage(MessageInfoV01 &msgInfo);

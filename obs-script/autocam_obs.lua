@@ -30,6 +30,8 @@ local TRIGGER_KEYS = {
     "player_driving_end",
     "replay_start",
     "replay_end",
+    "incident_start",
+    "incident_end",
     "battle_start",
     "battle_end",
     "sbs_start",
@@ -47,6 +49,8 @@ local TRIGGER_LABELS = {
     player_driving_end   = "Player driving ended / spectating  (player_driving: true → false)",
     replay_start    = "Replay started  (on_replay: false → true)",
     replay_end      = "Replay ended    (on_replay: true → false)",
+    incident_start  = "Incident detected  (incident: false → true)",
+    incident_end    = "Incident cleared   (incident: true → false)",
     battle_start    = "Battle started  (in_battle: false → true)",
     battle_end      = "Battle ended    (in_battle: true → false)",
     sbs_start       = "Side-by-side started  (sbs_active: false → true)",
@@ -205,6 +209,7 @@ local function poll()
     if not data then return end
 
     local on_replay      = obs.obs_data_get_bool(data,   "on_replay")
+    local incident       = obs.obs_data_get_bool(data,   "incident")
     local in_battle      = obs.obs_data_get_bool(data,   "in_battle")
     local sbs_active     = obs.obs_data_get_bool(data,   "sbs_active")
     local player_driving = obs.obs_data_get_bool(data,   "player_driving")
@@ -216,6 +221,7 @@ local function poll()
     -- First successful poll: establish baseline without firing any triggers.
     if not initialized then
         prev.on_replay      = on_replay
+        prev.incident       = incident
         prev.in_battle      = in_battle
         prev.sbs_active     = sbs_active
         prev.player_driving = player_driving
@@ -237,6 +243,13 @@ local function poll()
     if on_replay ~= prev.on_replay then
         fire_trigger(on_replay and "replay_start" or "replay_end")
         prev.on_replay = on_replay
+    end
+
+    -- incident ----------------------------------------------------------------
+    -- Fires on every detected incident (rF2 + LMU), independent of replay mode.
+    if incident ~= prev.incident then
+        fire_trigger(incident and "incident_start" or "incident_end")
+        prev.incident = incident
     end
 
     -- in_battle ---------------------------------------------------------------

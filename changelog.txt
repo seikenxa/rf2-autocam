@@ -1,3 +1,25 @@
+---v1.5.0 (2026-06-04)------------------------------------------------------------------------------------------------------
+- NEW: Incident signal — status.json gains an "incident" boolean (true for incidenthold
+  seconds after any detected incident, rF2 + LMU). OBS Lua gains incident_start/incident_end
+  triggers. Independent of replay mode; use for banners/alerts.
+- NEW: Live Cut (livecut=1) — manual incident replay. On a big incident the camera cuts to
+  the incident car and holds (incidenthold s) with an on-screen prompt; the operator presses
+  the Instant Replay key to replay (rF2: plugin seeks to the incident; LMU: native instant
+  replay of the already-focused car) and presses it again to return to autocam. Default off
+  (livecut=0 keeps the previous auto-replay behaviour).
+- NEW: replaykey=auto reads the sim's own Instant Replay binding (rF2 Controller.JSON /
+  LMU keyboard.json; DirectInput scancode → VK) so manual mode follows the user's key.
+  Override with an explicit hex VK if needed.
+- NEW: ini keys livecut (0), incidenthold (7), replaykey (auto).
+- CHANGE: lowinc/highinc defaults raised to 500 / 2000 to match the actual contact-severity
+  scale in current rF2/LMU (the old 0.4 / 0.8 fired on virtually every contact). For LMU
+  livecut, incidenthold ~20 is recommended so the focus covers watching a native replay.
+- CHANGE: "player driving" now detected via mControl==0 (local player in control) instead of
+  mIsPlayer, which is unreliable on LMU (stays set on the owned car while spectating). Autocam
+  now follows the player switching between driving and spectating within a session.
+- DEV: debug log gains imag/inc/lcf/orp/lo/hi/lc/pctl fields.
+- (Tony RZ feedback, LMU forum 2026-06-04.)
+
 ---v1.4.0 (2026-05-30)------------------------------------------------------------------------------------------------------
 - FIX: Auto camera froze after the player took control of a car (DRIVE). rF2 latches
   mReplayActive=true and never clears it, which blocked all camera switching; the camera

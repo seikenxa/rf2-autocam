@@ -61,8 +61,11 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 | `rearviewcam` | `6` | Rear-view camera type |
 | `walkthrough` | `1` | Walk-through mode on formation lap and after finish (0=off, 1=on) |
 | `showinpit` | `interestdiff` | When to show pit stops: `never`, `always`, `interestdiff`, `onboarddiff`, or a position number |
-| `lowinc` | `0.4` | Incident severity threshold for replay in practice/qualifying |
-| `highinc` | `0.8` | Incident severity threshold for replay in all sessions |
+| `lowinc` | `500` | Incident severity threshold for practice/qualifying. The severity is the contact magnitude from the results stream — roughly 500 = light contact, 2000+ = heavy, 3000+ = big crash |
+| `highinc` | `2000` | Incident severity threshold for races (and the bar in all sessions). Lower it to catch smaller race incidents |
+| `livecut` | `0` | Manual incident replay mode (0=off → auto replay as before; 1=on → live-focus the incident car and let the operator replay it manually with the Instant Replay key). See [Live Cut](#live-cut-manual-incident-replay) |
+| `replaykey` | `auto` | Key polled for manual replay in `livecut` mode. `auto` reads the sim's own Instant Replay binding (rF2 `Controller.JSON` / LMU `keyboard.json`); set a hex virtual-key code (e.g. `0x52` for R) to override |
+| `incidenthold` | `7` | Seconds to hold the live focus on the incident car, and how long the `incident` signal stays true. **For LMU `livecut`, set this to ~20** so the focus stays on the incident car long enough to watch a native replay; `7` is fine for rF2 (where the plugin drives the replay) |
 | `camtest` | `no` | Camera test mode: `no`, `ob` (force onboard), `rv` (force rearview) |
 | `sbsdist` | `1.5` | Side-by-side detection distance in meters (cars within this distance trigger SBS camera) |
 | `sbscount` | `2` | Minimum number of cars at the same track position to trigger SBS camera |
@@ -80,6 +83,40 @@ The ini file is created at `UserData\player\rF2autocam.ini` on first launch.
 | 3 | Swingman |
 | 4 | Trackside (nearest) |
 | 5–1004 | Onboard 000–999 |
+
+## Live Cut (manual incident replay)
+
+By default (`livecut=0`) the plugin reacts to a big incident by automatically
+triggering an instant replay (rF2 only — LMU has no plugin-controllable replay).
+
+With `livecut=1` the plugin instead **cuts the live camera to the incident car**
+and hands replay control to you:
+
+1. An incident is detected → the camera holds on the incident car for
+   `incidenthold` seconds and an on-screen message appears (`Incident - press R for replay`).
+2. Press your **Instant Replay key** (R by default — the plugin reads your actual
+   binding, see `replaykey`) to replay the incident.
+   - **rF2:** the plugin drives the replay — it seeks to the incident, and a second
+     press of the key returns to autocam.
+   - **Le Mans Ultimate:** the plugin only holds the live focus; you use LMU's own
+     native instant replay. Press R to replay (the camera is already on the incident
+     car, so the replay shows it) and click the **LIVE** marker at the right end of the
+     replay seek bar to return to the live session. The plugin does not
+     track or control LMU's replay, so set `incidenthold` long enough to cover watching
+     it (the camera stays locked on the incident car for that whole window).
+
+`livecut` is recommended for a human director who wants to decide when to replay,
+rather than having replays fire automatically.
+
+### Two incident signals (for OBS)
+
+| Signal | Fires on | Use for |
+|--------|----------|---------|
+| `incident` (→ `incident_start`/`incident_end`) | rF2 **and** LMU, on every detected incident | Banners / alerts — sim-independent |
+| `on_replay` (→ `replay_start`/`replay_end`) | rF2 only, while a replay actually plays | Replay scene switches |
+
+On rF2, `incident_start` fires a few seconds **before** `replay_start`; if you wire
+both to a scene switch you will get two cuts — pick one.
 
 ## OBS / Streaming Integration
 
@@ -121,6 +158,7 @@ Updated every ~0.5 seconds. Example:
 | `position` | number | Race/quali position of the current driver. `0` during replay |
 | `camera` | string | Active camera type: `tvcockpit`, `cockpit`, `nosecam`, `swingman`, `rearview`, `onboard`, `trackside` |
 | `on_replay` | boolean | `true` while an instant replay is playing |
+| `incident` | boolean | `true` for `incidenthold` seconds after an incident is detected (both rF2 and LMU, independent of replay mode) — drives a banner/alert in OBS |
 | `autocam` | boolean | `true` = auto camera is active; `false` = manual / autocam toggled off |
 | `session_type` | string | `practice`, `qualifying`, or `race` |
 | `game_phase` | string | Race phase: `garage`, `warmup`, `formation`, `green`, `yellow` (safety car/FCY), `stopped` (red flag), `finished` |
@@ -161,6 +199,8 @@ Available triggers:
 |---------|------------|
 | **Replay started** | `on_replay` becomes `true` |
 | **Replay ended** | `on_replay` becomes `false` |
+| **Incident detected** | `incident` becomes `true` (fires on rF2 + LMU) |
+| **Incident cleared** | `incident` becomes `false` |
 | **Battle started** | `in_battle` becomes `true` |
 | **Battle ended** | `in_battle` becomes `false` |
 | **Side-by-side started** | `sbs_active` becomes `true` |

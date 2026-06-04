@@ -79,6 +79,50 @@ void rF2autocam::SwitchCameraViaREST(int slotId)
     }).detach();
 }
 
+// Read the sim's own Instant Replay key binding so manual (live-cut) mode follows
+// whatever key the user has configured. rF2 stores it in UserData\player\Controller.JSON
+// as  "Control - Instant Replay":[0, <scancode>] ; LMU's keyboard.json uses a flat
+// "Instant Replay": <scancode>. Both are DirectInput scancodes (e.g. 19 = R).
+// Returns a Win32 virtual-key code (VK_R = 0x52 by default if nothing is found).
+int rF2autocam::DetectReplayKeyVK()
+{
+    const size_t slash = inifilename.find_last_of("/\\");
+    const std::string dir = (slash == std::string::npos) ? "." : inifilename.substr(0, slash);
+    const char* files[] = { "\\Controller.JSON", "\\keyboard.json" };
+    for (const char* fn : files) {
+        std::ifstream f(dir + fn);
+        if (!f.is_open()) continue;
+        std::stringstream ss; ss << f.rdbuf();
+        const std::string content = ss.str();
+        const size_t p = content.find("Instant Replay");
+        if (p == std::string::npos) continue;
+        const size_t colon = content.find(':', p);
+        if (colon == std::string::npos) continue;
+        const size_t s = content.find_first_not_of(" \t\r\n", colon + 1);
+        if (s == std::string::npos) continue;
+        std::string seg;
+        if (content[s] == '[') {                         // rF2 array form: [0, 19]
+            const size_t e = content.find(']', s);
+            seg = content.substr(s, (e == std::string::npos) ? 40 : e - s);
+        } else {                                         // LMU scalar form: 19
+            const size_t e = content.find_first_of(",\r\n}", s);
+            seg = content.substr(s, (e == std::string::npos) ? 8 : e - s);
+        }
+        int sc = -1;                                     // last integer token in seg
+        for (size_t i = 0; i < seg.size(); ) {
+            if (isdigit(static_cast<unsigned char>(seg[i]))) {
+                sc = atoi(seg.c_str() + i);
+                while (i < seg.size() && isdigit(static_cast<unsigned char>(seg[i]))) ++i;
+            } else ++i;
+        }
+        if (sc > 0) {
+            const UINT vk = MapVirtualKeyA(static_cast<UINT>(sc), MAPVK_VSC_TO_VK);
+            if (vk != 0) return static_cast<int>(vk);
+        }
+    }
+    return 0x52; // VK_R
+}
+
 // plugin information
 
 extern "C" __declspec( dllexport )
@@ -127,6 +171,11 @@ void rF2autocam::ResetSessionState()
     replaystarted = 0.0;
     replayset     = false;
     replayveh     = -1;
+    incidentActive   = false;
+    incidentSince    = 0.0;
+    replaykeypressed = false;
+    livecutFocus     = false;
+    livecutFocusStart = 0.0;
     inctime       = 0.0;
     incsize       = 0.0;
     preplayveh    = -1;
@@ -253,7 +302,8 @@ void rF2autocam::WriteToJson(long session, const std::string& timestr)
 		f << "  \"position\": "   << aktpos << ",\n";
 	}
 	f << "  \"camera\": \""       << camname  << "\",\n";
-	f << "  \"on_replay\": "        << (onreplay      ? "true" : "false") << ",\n";
+	f << "  \"on_replay\": "        << (onreplay       ? "true" : "false") << ",\n";
+	f << "  \"incident\": "         << (incidentActive ? "true" : "false") << ",\n";
 	f << "  \"autocam\": "          << (automatic     ? "true" : "false") << ",\n";
 	f << "  \"player_driving\": "   << (playerDriving ? "true" : "false") << ",\n";
 	f << "  \"session_type\": \""   << sessname << "\",\n";
@@ -357,14 +407,14 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 	GetPrivateProfileString("AUTOCAM", "lowinc", "a", seged, sizeof(seged), str.c_str());
 	lowinc = strtod(seged, &e);
 	if (0 == lowinc && seged == e) {
-		lowinc = 0.4;
-		WritePrivateProfileString("AUTOCAM", "lowinc", "0.4", str.c_str());
+		lowinc = 500.0;
+		WritePrivateProfileString("AUTOCAM", "lowinc", "500", str.c_str());
 	}
 	GetPrivateProfileString("AUTOCAM", "highinc", "a", seged, sizeof(seged), str.c_str());
 	highinc = strtod(seged, &e);
 	if (0 == highinc && seged == e) {
-		highinc = 0.8;
-		WritePrivateProfileString("AUTOCAM", "highinc", "0.8", str.c_str());
+		highinc = 2000.0;
+		WritePrivateProfileString("AUTOCAM", "highinc", "2000", str.c_str());
 	}
 	GetPrivateProfileString("AUTOCAM", "filespath", "0", seged, sizeof(seged), str.c_str());
 	filespath = seged;
@@ -404,6 +454,31 @@ void rF2autocam::SetEnvironment(const EnvironmentInfoV01 &info)
 	if (0 == replayoffset && seged == e) {
 		replayoffset = 5.0;
 		WritePrivateProfileString("AUTOCAM", "replayoffset", "5.0", str.c_str());
+	}
+	GetPrivateProfileString("AUTOCAM", "livecut", "a", seged, sizeof(seged), str.c_str());
+	livecut = strtol(seged, &e, 0);
+	if (0 == livecut && seged == e) {
+		livecut = 0;
+		WritePrivateProfileString("AUTOCAM", "livecut", "0", str.c_str());
+	}
+	GetPrivateProfileString("AUTOCAM", "incidenthold", "a", seged, sizeof(seged), str.c_str());
+	incidenthold = strtol(seged, &e, 0);
+	if (0 == incidenthold && seged == e) {
+		incidenthold = 7;
+		WritePrivateProfileString("AUTOCAM", "incidenthold", "7", str.c_str());
+	}
+	// replaykey: "auto" (default) reads the sim's own Instant Replay binding;
+	// an explicit hex VK (e.g. 0x52) overrides it for edge cases (wheel button, etc.)
+	GetPrivateProfileString("AUTOCAM", "replaykey", "0", seged, sizeof(seged), str.c_str());
+	{
+		const std::string rk = seged;
+		if (iequals(rk, "0") || iequals(rk, "auto")) {
+			replaykey = DetectReplayKeyVK();
+			WritePrivateProfileString("AUTOCAM", "replaykey", "auto", str.c_str());
+		} else {
+			const int v = strtol(seged, &e, 0);
+			replaykey = (v > 0) ? v : DetectReplayKeyVK();
+		}
 	}
 	// LMU detection (once only): check if REST API is running on localhost:6397
 	if (!lmuDetected) {
@@ -555,6 +630,22 @@ bool rF2autocam::CheckHWControl( const char * const controlName, double &fRetVal
       // Reset when either key is released so next chord fires correctly
       autokeypressed = false;
   }
+  // livecut (manual replay): poll the InstantReplay key ourselves so the operator
+  // drives the replay. 1st press → enter replay (plugin jumps to the incident);
+  // 2nd press → return to autocam. Frame-rate poll here (rF2); LMU polls in UpdateScoring.
+  if (livecut && key_pressed(replaykey))
+  {
+      if (!replaykeypressed)
+      {
+          replaykeypressed = true;
+          if (!onreplay) { onreplay = true; replaystarted = sessiontime; replayset = false; needreplay = false; }
+          else           { onreplay = false; replayset = false; stopreplay = false; }
+      }
+  }
+  else if (livecut)
+  {
+      replaykeypressed = false;
+  }
   if ((_stricmp(controlName, "InstantReplay") == 0) && (sessiontime > (inctime + 10)) && (needreplay && !onreplay))
   {
 	  fRetVal = 1.0f;
@@ -623,6 +714,13 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
     scoringrun = true;
     sessiontime = info.mCurrentET;
 
+    // LMU: the native instant replay (R) can be ENTERED but not exited via R, and the plugin
+    // can neither track nor control it. So we do NOT manage replay state on LMU — the sticky
+    // live-focus below locks the camera on the incident car for incidenthold seconds (no
+    // switching during that window = an effective stand-down). The operator presses native R
+    // to replay the focused incident and native Esc to exit. Set incidenthold long enough to
+    // cover watching the replay. (rF2 keeps full plugin-driven manual replay via CheckHWControl.)
+
     // Self-heal on session change / restart: rF2's StartSession callback is not always
     // delivered, so detect it here. Without this, stale camvalttime from a long previous
     // session stays "in the future" relative to the new session clock and the switch timer
@@ -663,12 +761,26 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
         }
 
         DetectIncidents(info);
+        // Clear the incident signal once the hold window elapses.
+        if (incidentActive && (sessiontime > incidentSince + incidenthold))
+            incidentActive = false;
 
         timerFired = ((sessiontime - camvalttime) > camvalthat);
         if (timerFired)
             ResolveTargetVehicle(info);
         else
             needveh = aktveh;
+
+        // livecut: hold the live camera on the incident car for incidenthold seconds
+        // so the operator can hit R to replay it. Overrides normal selection (rF2 + LMU).
+        if (livecut && livecutFocus && !onreplay) {
+            if (sessiontime > livecutFocusStart + incidenthold)
+                livecutFocus = false;
+            else {
+                needveh = replayveh;
+                needcam = kCamTrackside;
+            }
+        }
     }
 
     // Update driver name and current lap time for the tracked vehicle
@@ -685,7 +797,8 @@ void rF2autocam::UpdateScoring(const ScoringInfoV01 &info)
 
     // LMU: WantsToViewVehicle is never called by LMU → switch camera via REST API.
     // Skip when player is driving their own car (avoid disrupting cockpit view).
-    if (isLMU && !playerDriving && needveh != aktveh) {
+    // Skip while onreplay (livecut): stand down so the native instant replay is not disturbed.
+    if (isLMU && !playerDriving && !onreplay && needveh != aktveh) {
         aktveh      = needveh;
         aktpos      = needpos;
         lastcam     = needcam;
@@ -710,6 +823,8 @@ void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
     inpit   = false;
     maxsbs  = 0;
     playerDriving = false;
+    playerSlotId  = -1;
+    dbgPlayerCtl  = -9;
 
     for (long i = 0; i < info.mNumVehicles; ++i)
     {
@@ -718,7 +833,12 @@ void rF2autocam::ScanVehicles(const ScoringInfoV01 &info)
         // mPitState == 0 means on track; any other value means pit lane / pit box / garage.
         // This allows autocam to work while the player is waiting in the pits or watching
         // before going out, while still blocking camera switches during active laps.
-        if (vinfo.mIsPlayer) {
+        // "Player driving" = the local human is actively in control of a car (mControl==0),
+        // not merely the owner of a slot. mIsPlayer is unreliable (esp. LMU: it stays set on
+        // the owned car even while spectating). mControl tracks who is *actually* driving and
+        // updates dynamically as the user jumps between driving and spectating mid-session.
+        if (vinfo.mIsPlayer) dbgPlayerCtl = vinfo.mControl;     // diagnostic only
+        if (vinfo.mControl == 0) {                              // 0 = local player in control
             playerSlotId = vinfo.mID;
             if (vinfo.mFinishStatus == 0 && vinfo.mPitState == 0)
                 playerDriving = true;
@@ -999,18 +1119,52 @@ void rF2autocam::DetectIncidents(const ScoringInfoV01 &info)
     {
         if ((pincsize >= highinc) || ((pincsize >= lowinc) && (info.mSession < 10)))
         {
-            incsize    = pincsize;
-            replayveh  = preplayveh;
-            inctime    = pinctime;
-            needreplay = true;
+            incidentActive = true;          // status.json "incident" + OBS signal
+            incidentSince  = sessiontime;
+            if (livecut) {
+                // Sticky live-focus: lock onto the FIRST incident of a burst. A multi-car
+                // pile-up emits several contact lines; ignoring later ones for the focus
+                // window keeps the camera on the car we locked onto, so pressing R always
+                // replays it (LMU cannot re-seek the native replay after the fact).
+                if (!livecutFocus) {
+                    incsize    = pincsize;
+                    replayveh  = preplayveh;
+                    inctime    = pinctime;
+                    livecutFocus      = true;
+                    livecutFocusStart = sessiontime;
+                    strcpy(message.mText, "Incident - press R for replay");
+                }
+            } else {
+                incsize    = pincsize;
+                replayveh  = preplayveh;
+                inctime    = pinctime;
+                needreplay = true;          // auto instant replay (current behavior)
+            }
             pincsize   = 0;
         }
         if ((pincsize >= lowinc) && (info.mSession < 10) && ((pontosminbehind <= obtime) && (pontosminbehind >= 0.04)))
         {
-            incsize    = pincsize;
-            replayveh  = preplayveh;
-            inctime    = pinctime;
-            needreplay = true;
+            incidentActive = true;          // status.json "incident" + OBS signal
+            incidentSince  = sessiontime;
+            if (livecut) {
+                // Sticky live-focus: lock onto the FIRST incident of a burst. A multi-car
+                // pile-up emits several contact lines; ignoring later ones for the focus
+                // window keeps the camera on the car we locked onto, so pressing R always
+                // replays it (LMU cannot re-seek the native replay after the fact).
+                if (!livecutFocus) {
+                    incsize    = pincsize;
+                    replayveh  = preplayveh;
+                    inctime    = pinctime;
+                    livecutFocus      = true;
+                    livecutFocusStart = sessiontime;
+                    strcpy(message.mText, "Incident - press R for replay");
+                }
+            } else {
+                incsize    = pincsize;
+                replayveh  = preplayveh;
+                inctime    = pinctime;
+                needreplay = true;          // auto instant replay (current behavior)
+            }
             pincsize   = 0;
         }
     }
@@ -1120,6 +1274,14 @@ void rF2autocam::WriteSessionOutputs(const ScoringInfoV01 &info)
                << " nveh="      << needveh
                << " aveh="      << aktveh
                << " rveh="      << replayveh
+               << " imag="      << incsize
+               << " lo="        << lowinc
+               << " hi="        << highinc
+               << " inc="       << (incidentActive ? 1 : 0)
+               << " lcf="       << (livecutFocus ? 1 : 0)
+               << " orp="       << (onreplay ? 1 : 0)
+               << " lc="        << livecut
+               << " pctl="      << (int)dbgPlayerCtl
                << " inpit="     << inpit
                << " sbs="       << maxsbs
                << " pdrv="      << (playerDriving ? 1 : 0)
@@ -1176,11 +1338,12 @@ unsigned char rF2autocam::WantsToViewVehicle(CameraControlInfoV01 &camControl)
 		if (onreplay)
 		{
 			dbgWtvPath = 4; // our incident replay active: normal commit block below is skipped
-			if (sessiontime > replaystarted + replayduration)
+			// livecut: the operator ends the replay with a 2nd R press, so skip the auto-stop.
+			if (!livecut && sessiontime > replaystarted + replayduration)
 			{
 				stopreplay = true;
 				replayset = false;
-				needreplay = false;				
+				needreplay = false;
 			}
 			if (!replayset && !stopreplay && onreplay)
 			{
