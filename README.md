@@ -93,7 +93,9 @@ With `livecut=1` the plugin instead **cuts the live camera to the incident car**
 and hands replay control to you:
 
 1. An incident is detected → the camera holds on the incident car for
-   `incidenthold` seconds and an on-screen message appears (`Incident - press R for replay`).
+   `incidenthold` seconds. On **rF2** an on-screen message also appears
+   (`Incident - press R for replay`); **LMU does not display plugin messages**, so on
+   LMU the camera cutting to the incident car is your cue.
 2. Press your **Instant Replay key** (R by default — the plugin reads your actual
    binding, see `replaykey`) to replay the incident.
    - **rF2:** the plugin drives the replay — it seeks to the incident, and a second
