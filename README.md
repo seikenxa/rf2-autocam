@@ -94,8 +94,10 @@ and hands replay control to you:
 
 1. An incident is detected → the camera holds on the incident car for
    `incidenthold` seconds. On **rF2** an on-screen message also appears
-   (`Incident - press R for replay`); **LMU does not display plugin messages**, so on
-   LMU the camera cutting to the incident car is your cue.
+   (`Incident - press R for replay`). On **LMU** that message only shows while you are
+   driving — the message area isn't present in spectator/monitor view — so for a
+   broadcast/spectator setup the camera cutting to the incident car (and the OBS
+   `incident` signal) is your cue instead.
 2. Press your **Instant Replay key** (R by default — the plugin reads your actual
    binding, see `replaykey`) to replay the incident.
    - **rF2:** the plugin drives the replay — it seeks to the incident, and a second
